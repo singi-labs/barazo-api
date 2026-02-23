@@ -36,7 +36,7 @@ const baseEnvSchema = z.object({
   CORS_ORIGINS: z.string().default('http://localhost:3001'),
 
   // Community
-  COMMUNITY_MODE: z.enum(['single', 'global']).default('single'),
+  COMMUNITY_MODE: z.enum(['single', 'multi']).default('single'),
   COMMUNITY_DID: z.string().optional(),
   COMMUNITY_NAME: z.string().default('Barazo Community'),
 
@@ -78,7 +78,7 @@ const baseEnvSchema = z.object({
     .transform((v) => v === 'true'),
   PUBLIC_URL: z.string().default('http://localhost:3001'),
 
-  // Global mode: operator DIDs (comma-separated)
+  // Multi mode: operator DIDs (comma-separated)
   OPERATOR_DIDS: z
     .string()
     .default('')

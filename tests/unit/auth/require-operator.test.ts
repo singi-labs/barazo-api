@@ -48,7 +48,7 @@ function createMockEnv(
   overrides: Partial<Pick<Env, 'COMMUNITY_MODE' | 'OPERATOR_DIDS'>> = {}
 ): Pick<Env, 'COMMUNITY_MODE' | 'OPERATOR_DIDS'> {
   return {
-    COMMUNITY_MODE: overrides.COMMUNITY_MODE ?? 'global',
+    COMMUNITY_MODE: overrides.COMMUNITY_MODE ?? 'multi',
     OPERATOR_DIDS: overrides.OPERATOR_DIDS ?? ['did:plc:operator123'],
   }
 }
@@ -132,7 +132,7 @@ describe('requireOperator middleware', () => {
   // -------------------------------------------------------------------------
 
   it('returns 401 when requireAuth rejects (no token)', async () => {
-    await buildApp({ COMMUNITY_MODE: 'global' })
+    await buildApp({ COMMUNITY_MODE: 'multi' })
 
     vi.mocked(mockAuthMiddleware.requireAuth).mockImplementation(async (_request, reply) => {
       await reply.status(401).send({ error: 'Authentication required' })
@@ -155,7 +155,7 @@ describe('requireOperator middleware', () => {
 
   it('returns 403 if user DID is not in OPERATOR_DIDS', async () => {
     await buildApp({
-      COMMUNITY_MODE: 'global',
+      COMMUNITY_MODE: 'multi',
       OPERATOR_DIDS: ['did:plc:operator123'],
     })
 
@@ -175,7 +175,7 @@ describe('requireOperator middleware', () => {
   })
 
   it('returns 403 when requireAuth passes but request.user is not set', async () => {
-    await buildApp({ COMMUNITY_MODE: 'global' })
+    await buildApp({ COMMUNITY_MODE: 'multi' })
 
     // requireAuth passes without setting request.user
     vi.mocked(mockAuthMiddleware.requireAuth).mockImplementation(async (_request, _reply) => {
@@ -197,9 +197,9 @@ describe('requireOperator middleware', () => {
   // Success path
   // -------------------------------------------------------------------------
 
-  it("grants access if user DID is in OPERATOR_DIDS and mode is 'global'", async () => {
+  it("grants access if user DID is in OPERATOR_DIDS and mode is 'multi'", async () => {
     await buildApp({
-      COMMUNITY_MODE: 'global',
+      COMMUNITY_MODE: 'multi',
       OPERATOR_DIDS: ['did:plc:operator123'],
     })
 
@@ -219,7 +219,7 @@ describe('requireOperator middleware', () => {
 
   it('grants access when OPERATOR_DIDS contains multiple DIDs', async () => {
     await buildApp({
-      COMMUNITY_MODE: 'global',
+      COMMUNITY_MODE: 'multi',
       OPERATOR_DIDS: ['did:plc:other999', 'did:plc:operator123', 'did:plc:another888'],
     })
 
@@ -243,7 +243,7 @@ describe('requireOperator middleware', () => {
 
   it('logs audit trail when operator access is denied (DID not in list)', async () => {
     await buildApp({
-      COMMUNITY_MODE: 'global',
+      COMMUNITY_MODE: 'multi',
       OPERATOR_DIDS: ['did:plc:operator123'],
     })
 
@@ -263,7 +263,7 @@ describe('requireOperator middleware', () => {
   })
 
   it('logs audit trail when operator access is denied (no user after auth)', async () => {
-    await buildApp({ COMMUNITY_MODE: 'global' })
+    await buildApp({ COMMUNITY_MODE: 'multi' })
 
     vi.mocked(mockAuthMiddleware.requireAuth).mockImplementation(async (_request, _reply) => {
       // intentionally do not set request.user
@@ -282,7 +282,7 @@ describe('requireOperator middleware', () => {
 
   it('logs audit trail when operator access is granted', async () => {
     await buildApp({
-      COMMUNITY_MODE: 'global',
+      COMMUNITY_MODE: 'multi',
       OPERATOR_DIDS: ['did:plc:operator123'],
     })
 

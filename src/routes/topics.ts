@@ -551,9 +551,9 @@ export function topicRoutes(): FastifyPluginCallback {
         // Slug→maturityRating lookup, populated by the category queries below
         const categoryMaturityMap = new Map<string, string>()
 
-        if (env.COMMUNITY_MODE === 'global') {
+        if (env.COMMUNITY_MODE === 'multi') {
           // ---------------------------------------------------------------
-          // Global mode: multi-community filtering
+          // Multi mode: multi-community filtering
           // ---------------------------------------------------------------
 
           // Get all community settings with a valid communityDid

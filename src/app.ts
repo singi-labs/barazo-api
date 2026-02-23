@@ -198,7 +198,7 @@ export async function buildApp(env: Env) {
   const requireAdmin = createRequireAdmin(db, authMiddleware, app.log)
   app.decorate('requireAdmin', requireAdmin)
 
-  // Operator middleware (global mode only)
+  // Operator middleware (multi mode only)
   const requireOperator = createRequireOperator(env, authMiddleware, app.log)
   app.decorate('requireOperator', requireOperator)
 

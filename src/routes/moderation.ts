@@ -575,8 +575,8 @@ export function moderationRoutes(): FastifyPluginCallback {
 
         app.log.info({ action, targetDid, adminDid: admin.did }, `User ${action}ned`)
 
-        // In global mode, check ban propagation across communities
-        if (env.COMMUNITY_MODE === 'global' && action === 'ban') {
+        // In multi mode, check ban propagation across communities
+        if (env.COMMUNITY_MODE === 'multi' && action === 'ban') {
           try {
             const result = await checkBanPropagation(db, app.cache, app.log, targetDid)
             if (result.propagated) {
@@ -810,8 +810,8 @@ export function moderationRoutes(): FastifyPluginCallback {
           'Content reported'
         )
 
-        // In global mode, notify the community admin about the report
-        if (env.COMMUNITY_MODE === 'global') {
+        // In multi mode, notify the community admin about the report
+        if (env.COMMUNITY_MODE === 'multi') {
           try {
             const filterRows = await db
               .select({ adminDid: communityFilters.adminDid })
