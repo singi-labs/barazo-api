@@ -1,5 +1,4 @@
-import { Tap, SimpleIndexer } from '@atproto/tap'
-import type { TapChannel } from '@atproto/tap'
+import { Tap, SimpleIndexer, TapChannel } from '@atproto/tap'
 import type { RecordEvent as TapRecordEvent, IdentityEvent as TapIdentityEvent } from '@atproto/tap'
 import type { Database } from '../db/index.js'
 import type { Logger } from '../lib/logger.js'
@@ -20,6 +19,9 @@ interface FirehoseStatus {
   lastEventId: number | null
 }
 
+const MIN_BACKOFF_MS = 1000
+const MAX_BACKOFF_MS = 60_000
+
 export class FirehoseService {
   private tap: Tap
   private channel: TapChannel | null = null
@@ -27,13 +29,17 @@ export class FirehoseService {
   private repoManager: RepoManager
   private recordHandler: RecordHandler
   private identityHandler: IdentityHandler
+  private indexer: SimpleIndexer | null = null
   private connected = false
   private lastEventId: number | null = null
+  private shuttingDown = false
+  private reconnectAttempts = 0
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(
     db: Database,
     private logger: Logger,
-    env: Env
+    private env: Env
   ) {
     this.tap = new Tap(env.TAP_URL, {
       adminPassword: env.TAP_ADMIN_PASSWORD,
@@ -60,11 +66,12 @@ export class FirehoseService {
 
   async start(): Promise<void> {
     try {
+      this.shuttingDown = false
       await this.repoManager.restoreTrackedRepos()
 
-      const indexer = new SimpleIndexer()
+      this.indexer = new SimpleIndexer()
 
-      indexer.record(async (evt: TapRecordEvent) => {
+      this.indexer.record(async (evt: TapRecordEvent) => {
         const event: RecordEvent = {
           id: evt.id,
           action: evt.action,
@@ -78,11 +85,10 @@ export class FirehoseService {
         }
 
         await this.recordHandler.handle(event)
-        this.lastEventId = evt.id
-        this.cursorStore.saveCursor(BigInt(evt.id))
+        this.onEventProcessed(evt.id)
       })
 
-      indexer.identity(async (evt: TapIdentityEvent) => {
+      this.indexer.identity(async (evt: TapIdentityEvent) => {
         const event: IdentityEvent = {
           id: evt.id,
           did: evt.did,
@@ -92,26 +98,20 @@ export class FirehoseService {
         }
 
         await this.identityHandler.handle(event)
-        this.lastEventId = evt.id
-        this.cursorStore.saveCursor(BigInt(evt.id))
+        this.onEventProcessed(evt.id)
       })
 
-      indexer.error((err: Error) => {
+      this.indexer.error((err: Error) => {
         this.logger.error({ err }, 'Firehose indexer error')
       })
 
-      this.channel = this.tap.channel(indexer)
+      const cursor = await this.cursorStore.getCursor()
+      this.startChannel(cursor)
 
-      // channel.start() is a long-running loop over WebSocket messages that
-      // only resolves when the channel is destroyed. Run it as a background
-      // task so it does not block the Fastify onReady hook.
-      this.channel.start().catch((err: unknown) => {
-        this.logger.error({ err }, 'Firehose channel error')
-        this.connected = false
-      })
-
-      this.connected = true
-      this.logger.info('Firehose subscription started')
+      this.logger.info(
+        { cursor: cursor !== null ? cursor.toString() : null },
+        'Firehose subscription started'
+      )
     } catch (err) {
       this.logger.error({ err }, 'Failed to start firehose service')
       this.connected = false
@@ -119,10 +119,18 @@ export class FirehoseService {
   }
 
   async stop(): Promise<void> {
+    this.shuttingDown = true
+
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+
     if (this.channel) {
       await this.channel.destroy()
       this.channel = null
     }
+
     await this.cursorStore.flush()
     this.connected = false
     this.logger.info('Firehose subscription stopped')
@@ -137,5 +145,99 @@ export class FirehoseService {
 
   getRepoManager(): RepoManager {
     return this.repoManager
+  }
+
+  private onEventProcessed(id: number): void {
+    if (!this.connected) {
+      this.connected = true
+      this.logger.info('Firehose connection confirmed')
+    }
+    this.reconnectAttempts = 0
+    this.lastEventId = id
+    this.cursorStore.saveCursor(BigInt(id))
+  }
+
+  private startChannel(cursor: bigint | null): void {
+    if (this.shuttingDown || !this.indexer) {
+      return
+    }
+
+    this.channel = this.createChannel(cursor)
+
+    this.channel
+      .start()
+      .then(() => {
+        this.connected = false
+        if (!this.shuttingDown) {
+          this.logger.warn('Firehose channel closed, scheduling reconnection')
+          this.scheduleReconnect()
+        }
+      })
+      .catch((err: unknown) => {
+        this.connected = false
+        if (!this.shuttingDown) {
+          this.logger.error({ err }, 'Firehose channel error, scheduling reconnection')
+          this.scheduleReconnect()
+        }
+      })
+  }
+
+  private createChannel(cursor: bigint | null): TapChannel {
+    if (!this.indexer) {
+      throw new Error('Cannot create channel: indexer not initialized')
+    }
+
+    const url = new URL(this.env.TAP_URL)
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+    url.pathname = '/channel'
+    if (cursor !== null) {
+      url.searchParams.set('cursor', cursor.toString())
+    }
+
+    return new TapChannel(url.toString(), this.indexer, {
+      adminPassword: this.env.TAP_ADMIN_PASSWORD,
+    })
+  }
+
+  private scheduleReconnect(): void {
+    if (this.shuttingDown) {
+      return
+    }
+
+    this.reconnectAttempts++
+    const backoffMs = Math.min(
+      MIN_BACKOFF_MS * Math.pow(2, this.reconnectAttempts - 1),
+      MAX_BACKOFF_MS
+    )
+
+    this.logger.info(
+      { attempt: this.reconnectAttempts, backoffMs },
+      'Scheduling firehose reconnection'
+    )
+
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null
+      void this.attemptReconnect()
+    }, backoffMs)
+  }
+
+  private async attemptReconnect(): Promise<void> {
+    if (this.shuttingDown) {
+      return
+    }
+
+    try {
+      const cursor = await this.cursorStore.getCursor()
+
+      this.logger.info(
+        { attempt: this.reconnectAttempts, cursor: cursor?.toString() ?? null },
+        'Attempting firehose reconnection'
+      )
+
+      this.startChannel(cursor)
+    } catch (err) {
+      this.logger.error({ err, attempt: this.reconnectAttempts }, 'Firehose reconnection failed')
+      this.scheduleReconnect()
+    }
   }
 }
