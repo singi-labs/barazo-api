@@ -2,6 +2,36 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { buildApp } from '../../../src/app.js'
 import type { FastifyInstance } from 'fastify'
 
+// Mock database to avoid real PostgreSQL connection
+const mockExecute = vi.fn().mockResolvedValue([{ '?column?': 1 }])
+const mockDb = {
+  execute: mockExecute,
+  select: vi.fn().mockReturnValue({ from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) }) }),
+  insert: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+  transaction: vi.fn(),
+  query: {},
+}
+const mockClient = {
+  end: vi.fn().mockResolvedValue(undefined),
+}
+vi.mock('../../../src/db/index.js', () => ({
+  createDb: () => ({ db: mockDb, client: mockClient }),
+}))
+
+// Mock cache to avoid real Valkey connection
+const mockCache = {
+  get: vi.fn().mockResolvedValue(null),
+  set: vi.fn().mockResolvedValue(undefined),
+  del: vi.fn().mockResolvedValue(undefined),
+  ping: vi.fn().mockResolvedValue('PONG'),
+  quit: vi.fn().mockResolvedValue(undefined),
+}
+vi.mock('../../../src/cache/index.js', () => ({
+  createCache: () => mockCache,
+}))
+
 // Mock @atproto/oauth-client-node to avoid crypto operations
 vi.mock('@atproto/oauth-client-node', () => {
   return {

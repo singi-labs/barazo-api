@@ -128,6 +128,10 @@ async function buildTestApp(user?: RequestUser): Promise<FastifyInstance> {
   app.decorate('sessionService', {} as SessionService)
   app.decorate('setupService', {} as SetupService)
   app.decorateRequest('user', undefined as RequestUser | undefined)
+  app.decorateRequest('communityDid', undefined as string | undefined)
+  app.addHook('onRequest', async (request) => {
+    request.communityDid = 'did:plc:test'
+  })
 
   mockRequireModerator.mockImplementation((request: { user: RequestUser | undefined }) => {
     if (user) {

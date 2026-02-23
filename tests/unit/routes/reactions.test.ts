@@ -185,6 +185,10 @@ async function buildTestApp(user?: RequestUser): Promise<FastifyInstance> {
     recordCoParticipation: vi.fn().mockResolvedValue(undefined),
   } as never)
   app.decorateRequest('user', undefined as RequestUser | undefined)
+  app.decorateRequest('communityDid', undefined as string | undefined)
+  app.addHook('onRequest', async (request) => {
+    request.communityDid = 'did:plc:test'
+  })
 
   await app.register(reactionRoutes())
   await app.ready()

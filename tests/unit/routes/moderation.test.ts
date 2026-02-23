@@ -275,6 +275,10 @@ async function buildTestApp(
   app.decorate('setupService', {} as SetupService)
   app.decorate('cache', {} as never)
   app.decorateRequest('user', undefined as RequestUser | undefined)
+  app.decorateRequest('communityDid', undefined as string | undefined)
+  app.addHook('onRequest', async (request) => {
+    request.communityDid = 'did:plc:test'
+  })
 
   await app.register(moderationRoutes())
   await app.ready()
@@ -311,6 +315,10 @@ async function buildPassthroughAuthApp(): Promise<FastifyInstance> {
   app.decorate('setupService', {} as SetupService)
   app.decorate('cache', {} as never)
   app.decorateRequest('user', undefined as RequestUser | undefined)
+  app.decorateRequest('communityDid', undefined as string | undefined)
+  app.addHook('onRequest', async (request) => {
+    request.communityDid = 'did:plc:test'
+  })
 
   await app.register(moderationRoutes())
   await app.ready()
@@ -1657,10 +1665,10 @@ describe('moderation routes', () => {
     let globalApp: FastifyInstance
 
     beforeAll(async () => {
-      // Build a special app with COMMUNITY_MODE='global'
+      // Build a special app with COMMUNITY_MODE='multi'
       const globalEnv = {
         ...mockEnv,
-        COMMUNITY_MODE: 'global',
+        COMMUNITY_MODE: 'multi',
       } as Env
 
       const app = Fastify({ logger: false })
@@ -1679,6 +1687,10 @@ describe('moderation routes', () => {
         del: vi.fn().mockResolvedValue(undefined),
       } as never)
       app.decorateRequest('user', undefined as RequestUser | undefined)
+      app.decorateRequest('communityDid', undefined as string | undefined)
+      app.addHook('onRequest', async (request) => {
+        request.communityDid = 'did:plc:test'
+      })
 
       await app.register(moderationRoutes())
       await app.ready()
@@ -1915,7 +1927,7 @@ describe('moderation routes', () => {
     beforeAll(async () => {
       const globalEnv = {
         ...mockEnv,
-        COMMUNITY_MODE: 'global',
+        COMMUNITY_MODE: 'multi',
       } as Env
 
       const app = Fastify({ logger: false })
@@ -1931,6 +1943,10 @@ describe('moderation routes', () => {
       app.decorate('setupService', {} as SetupService)
       app.decorate('cache', {} as never)
       app.decorateRequest('user', undefined as RequestUser | undefined)
+      app.decorateRequest('communityDid', undefined as string | undefined)
+      app.addHook('onRequest', async (request) => {
+        request.communityDid = 'did:plc:test'
+      })
 
       await app.register(moderationRoutes())
       await app.ready()

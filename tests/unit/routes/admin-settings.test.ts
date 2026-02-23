@@ -120,7 +120,6 @@ function createMockRequireAdmin(user?: RequestUser) {
 
 function sampleCommunitySettings(overrides?: Record<string, unknown>) {
   return {
-    id: 'default',
     initialized: true,
     communityDid: 'did:plc:community123',
     adminDid: ADMIN_DID,
@@ -178,6 +177,10 @@ async function buildTestApp(user?: RequestUser): Promise<FastifyInstance> {
   app.decorate('setupService', {} as SetupService)
   app.decorate('cache', {} as never)
   app.decorateRequest('user', undefined as RequestUser | undefined)
+  app.decorateRequest('communityDid', undefined as string | undefined)
+  app.addHook('onRequest', async (request) => {
+    request.communityDid = 'did:plc:test'
+  })
 
   await app.register(adminSettingsRoutes())
   await app.ready()
@@ -222,12 +225,10 @@ describe('admin settings routes', () => {
 
       expect(response.statusCode).toBe(200)
       const body = response.json<{
-        id: string
         communityName: string
         maturityRating: string
         initialized: boolean
       }>()
-      expect(body.id).toBe('default')
       expect(body.communityName).toBe('Test Community')
       expect(body.maturityRating).toBe('safe')
       expect(body.initialized).toBe(true)

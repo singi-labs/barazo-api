@@ -130,14 +130,14 @@ describe('envSchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('accepts global COMMUNITY_MODE', () => {
+  it('accepts multi COMMUNITY_MODE', () => {
     const result = envSchema.safeParse({
       ...validEnv,
-      COMMUNITY_MODE: 'global',
+      COMMUNITY_MODE: 'multi',
     })
     expect(result.success).toBe(true)
     if (result.success) {
-      expect(result.data.COMMUNITY_MODE).toBe('global')
+      expect(result.data.COMMUNITY_MODE).toBe('multi')
     }
   })
 
@@ -240,10 +240,10 @@ describe('COMMUNITY_DID validation', () => {
     expect(result.success).toBe(true)
   })
 
-  it('accepts global mode without COMMUNITY_DID', () => {
+  it('accepts multi mode without COMMUNITY_DID', () => {
     const result = envSchema.safeParse({
       ...baseEnv,
-      COMMUNITY_MODE: 'global',
+      COMMUNITY_MODE: 'multi',
     })
     expect(result.success).toBe(true)
   })

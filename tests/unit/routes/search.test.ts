@@ -94,6 +94,10 @@ async function buildTestApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false })
 
   app.decorateRequest('user', undefined as RequestUser | undefined)
+  app.decorateRequest('communityDid', undefined as string | undefined)
+  app.addHook('onRequest', async (request) => {
+    request.communityDid = 'did:plc:test'
+  })
   app.decorate('db', mockDb as never)
   app.decorate('env', {
     EMBEDDING_URL: undefined,
@@ -1368,6 +1372,10 @@ describe('search routes', () => {
     const authApp = Fastify({ logger: false })
 
     authApp.decorateRequest('user', undefined as RequestUser | undefined)
+    authApp.decorateRequest('communityDid', undefined as string | undefined)
+    authApp.addHook('onRequest', async (request) => {
+      request.communityDid = 'did:plc:test'
+    })
     authApp.decorate('db', mockDb as never)
     authApp.decorate('env', {
       EMBEDDING_URL: undefined,
@@ -1393,10 +1401,10 @@ describe('search routes', () => {
     })
 
     expect(response.statusCode).toBe(200)
-    // loadMutedWords should be called with the authenticated user's DID
+    // loadMutedWords should be called with the authenticated user's DID and community DID
     expect(mockLoadMutedWords).toHaveBeenCalledWith(
       'did:plc:autheduser',
-      TEST_COMMUNITY_DID,
+      'did:plc:test',
       expect.anything()
     )
 

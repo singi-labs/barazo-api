@@ -57,7 +57,7 @@ function nonOperatorUser(overrides?: Partial<RequestUser>): RequestUser {
 // ---------------------------------------------------------------------------
 
 const globalMockEnv = {
-  COMMUNITY_MODE: 'global',
+  COMMUNITY_MODE: 'multi',
   OPERATOR_DIDS: [OPERATOR_DID],
   RATE_LIMIT_WRITE: 10,
   RATE_LIMIT_READ_ANON: 100,

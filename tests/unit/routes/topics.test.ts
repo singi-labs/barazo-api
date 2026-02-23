@@ -243,6 +243,10 @@ async function buildTestApp(user?: RequestUser): Promise<FastifyInstance> {
   app.decorate('setupService', {} as SetupService)
   app.decorate('cache', {} as never)
   app.decorateRequest('user', undefined as RequestUser | undefined)
+  app.decorateRequest('communityDid', undefined as string | undefined)
+  app.addHook('onRequest', async (request) => {
+    request.communityDid = 'did:plc:test'
+  })
 
   await app.register(topicRoutes())
   await app.ready()
@@ -863,21 +867,23 @@ describe('topic routes', () => {
       // Topics query (terminal via .limit)
       selectChain.limit.mockResolvedValueOnce([sampleTopicRow({ authorDid: TEST_DID })])
 
-      // After maturity mocks (3 .where calls consumed), 4 more .where calls follow:
+      // After maturity mocks (3 .where calls consumed), 5 more .where calls follow:
       //   4. loadBlockMuteLists .where (terminal)
       //   5. topics .where (chained to .orderBy().limit())
       //   6. loadMutedWords global .where (terminal)
-      //   7. resolveAuthors users .where (terminal)
-      // We must explicitly mock calls 4-7 so that:
+      //   7. loadMutedWords community .where (terminal)
+      //   8. resolveAuthors users .where (terminal)
+      // We must explicitly mock calls 4-8 so that:
       //   - Call 5 returns the chain (not a Promise) for .orderBy().limit() to work
-      //   - Call 7 returns the author user row
+      //   - Call 8 returns the author user row
 
       selectChain.where.mockResolvedValueOnce([]) // 4: loadBlockMuteLists
 
       selectChain.where.mockImplementationOnce(() => selectChain) // 5: topics .where
       selectChain.where.mockResolvedValueOnce([]) // 6: loadMutedWords global
+      selectChain.where.mockResolvedValueOnce([]) // 7: loadMutedWords community
       selectChain.where.mockResolvedValueOnce([
-        // 7: resolveAuthors users
+        // 8: resolveAuthors users
         {
           did: TEST_DID,
           handle: TEST_HANDLE,
@@ -1489,7 +1495,7 @@ describe('topic routes', () => {
   describe('GET /api/topics (global mode)', () => {
     const globalMockEnv = {
       ...mockEnv,
-      COMMUNITY_MODE: 'global' as const,
+      COMMUNITY_MODE: 'multi' as const,
       COMMUNITY_DID: undefined,
     } as Env
 
@@ -1507,6 +1513,10 @@ describe('topic routes', () => {
       globalApp.decorate('setupService', {} as SetupService)
       globalApp.decorate('cache', {} as never)
       globalApp.decorateRequest('user', undefined as RequestUser | undefined)
+      globalApp.decorateRequest('communityDid', undefined as string | undefined)
+      globalApp.addHook('onRequest', async (request) => {
+        request.communityDid = 'did:plc:test'
+      })
 
       await globalApp.register(topicRoutes())
       await globalApp.ready()
@@ -2092,6 +2102,10 @@ describe('topic routes', () => {
       crossPostApp.decorate('setupService', {} as SetupService)
       crossPostApp.decorate('cache', {} as never)
       crossPostApp.decorateRequest('user', undefined as RequestUser | undefined)
+      crossPostApp.decorateRequest('communityDid', undefined as string | undefined)
+      crossPostApp.addHook('onRequest', async (request) => {
+        request.communityDid = 'did:plc:test'
+      })
       await crossPostApp.register(topicRoutes())
       await crossPostApp.ready()
 
@@ -2215,6 +2229,10 @@ describe('topic routes', () => {
         batchIsSpamLabeled: vi.fn().mockResolvedValue(new Map()),
       } as never)
       ozoneApp.decorateRequest('user', undefined as RequestUser | undefined)
+      ozoneApp.decorateRequest('communityDid', undefined as string | undefined)
+      ozoneApp.addHook('onRequest', async (request) => {
+        request.communityDid = 'did:plc:test'
+      })
       await ozoneApp.register(topicRoutes())
       await ozoneApp.ready()
       app = ozoneApp
@@ -2340,6 +2358,10 @@ describe('topic routes', () => {
         batchIsSpamLabeled: batchIsSpamLabeledFn,
       } as never)
       ozoneApp.decorateRequest('user', undefined as RequestUser | undefined)
+      ozoneApp.decorateRequest('communityDid', undefined as string | undefined)
+      ozoneApp.addHook('onRequest', async (request) => {
+        request.communityDid = 'did:plc:test'
+      })
       await ozoneApp.register(topicRoutes())
       await ozoneApp.ready()
       app = ozoneApp
@@ -3203,7 +3225,7 @@ describe('topic routes', () => {
   describe('GET /api/topics (global mode - additional branches)', () => {
     const globalMockEnv = {
       ...mockEnv,
-      COMMUNITY_MODE: 'global' as const,
+      COMMUNITY_MODE: 'multi' as const,
       COMMUNITY_DID: undefined,
     } as Env
 
@@ -3219,6 +3241,10 @@ describe('topic routes', () => {
       globalApp.decorate('setupService', {} as SetupService)
       globalApp.decorate('cache', {} as never)
       globalApp.decorateRequest('user', undefined as RequestUser | undefined)
+      globalApp.decorateRequest('communityDid', undefined as string | undefined)
+      globalApp.addHook('onRequest', async (request) => {
+        request.communityDid = 'did:plc:test'
+      })
 
       await globalApp.register(topicRoutes())
       await globalApp.ready()
