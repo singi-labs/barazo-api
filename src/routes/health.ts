@@ -38,9 +38,12 @@ export const healthRoutes: FastifyPluginCallback = (fastify, _opts, done) => {
     }
 
     // Check firehose
+    // During startup (no events processed yet), treat as healthy.
+    // Once events have been processed, require an active connection.
     const firehoseStatus = fastify.firehose.getStatus()
+    const firehoseHealthy = firehoseStatus.connected || firehoseStatus.lastEventId === null
     checks['firehose'] = {
-      status: firehoseStatus.connected ? 'healthy' : 'unhealthy',
+      status: firehoseHealthy ? 'healthy' : 'unhealthy',
       ...(firehoseStatus.lastEventId !== null ? { latency: firehoseStatus.lastEventId } : {}),
     }
 
