@@ -9,17 +9,17 @@ The AppView backend for Barazo. Subscribes to AT Protocol firehose, indexes `for
 
 ## Tech Stack
 
-| Component  | Technology                                             |
-| ---------- | ------------------------------------------------------ |
-| Runtime    | Node.js 24 LTS / TypeScript (strict)                   |
-| Framework  | Fastify                                                |
-| Protocol   | @atproto/api, @atproto/oauth-client-node, @atproto/tap |
-| Database   | PostgreSQL 16 (Drizzle ORM, Drizzle Kit push)          |
-| Cache      | Valkey                                                 |
-| Testing    | Vitest + Supertest                                     |
-| Logging    | Pino (structured)                                      |
-| Monitoring | GlitchTip (Sentry SDK-compatible)                      |
-| Security   | Helmet + Zod + DOMPurify + rate limiting               |
+| Component | Technology |
+|-----------|-----------|
+| Runtime | Node.js 24 LTS / TypeScript (strict) |
+| Framework | Fastify |
+| Protocol | @atproto/api, @atproto/oauth-client-node, @atproto/tap |
+| Database | PostgreSQL 16 (Drizzle ORM, Drizzle Kit push) |
+| Cache | Valkey |
+| Testing | Vitest + Supertest |
+| Logging | Pino (structured) |
+| Monitoring | GlitchTip (Sentry SDK-compatible) |
+| Security | Helmet + Zod + DOMPurify + rate limiting |
 
 ## What This Repo Does
 
@@ -50,7 +50,7 @@ The AppView backend for Barazo. Subscribes to AT Protocol firehose, indexes `for
 Open-source forum software built on the [AT Protocol](https://atproto.com/). Portable identity, member-owned data, no lock-in.
 
 - **Organization:** [github.com/barazo-forum](https://github.com/barazo-forum)
-- **License:** AGPL-3.0 (backend) / MIT (frontend, lexicons, deploy, website)
+- **License:** AGPL-3.0 (backend) / MIT (frontend, lexicons, deploy) / CC BY-SA 4.0 + MIT (docs) / Proprietary (website)
 - **Contributing:** See [CONTRIBUTING.md](https://github.com/barazo-forum/.github/blob/main/CONTRIBUTING.md)
 
 ### Coding Standards
