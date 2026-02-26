@@ -104,7 +104,8 @@ export class OzoneService {
 
   private async handleMessage(data: unknown): Promise<void> {
     try {
-      const text = typeof data === 'string' ? data : String(data)
+      const text =
+        data instanceof Blob ? await data.text() : typeof data === 'string' ? data : String(data)
       const event = JSON.parse(text) as LabelEvent
 
       if (!Array.isArray(event.labels)) return

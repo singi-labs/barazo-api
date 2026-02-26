@@ -735,6 +735,28 @@ describe('OzoneService', () => {
       )
     })
 
+    it('handleMessage handles Blob data from Node.js native WebSocket', async () => {
+      const labelEvent = {
+        seq: 1,
+        labels: [
+          {
+            src: 'did:plc:labeler1',
+            uri: 'did:plc:user1',
+            val: 'spam',
+            neg: false,
+            cts: '2026-01-15T12:00:00.000Z',
+          },
+        ],
+      }
+      const blob = new Blob([JSON.stringify(labelEvent)], { type: 'application/json' })
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      await (service as any).handleMessage(blob)
+
+      expect(db.insert).toHaveBeenCalled()
+      expect(logger.warn).not.toHaveBeenCalled()
+    })
+
     it('handleMessage handles non-string data by converting to string', async () => {
       const event = {
         seq: 1,
