@@ -1,9 +1,11 @@
 import { z } from 'zod/v4'
-import { didRegex } from '@barazo-forum/lexicons'
 
 // ---------------------------------------------------------------------------
 // Param schemas for block/mute action endpoints
 // ---------------------------------------------------------------------------
+
+// TODO: Import from @barazo-forum/lexicons once didRegex export is published (see barazo-lexicons#44)
+const didRegex = /^did:[a-z]+:[a-zA-Z0-9._:%-]+$/
 
 /** Schema for validating :did route parameter. */
 export const didParamSchema = z.object({
