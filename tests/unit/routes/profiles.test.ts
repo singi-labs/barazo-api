@@ -63,6 +63,10 @@ function sampleUserRow(overrides?: Record<string, unknown>) {
     lastActiveAt: new Date(TEST_NOW),
     declaredAge: null,
     maturityPref: 'safe',
+    followersCount: 0,
+    followsCount: 0,
+    atprotoPostsCount: 0,
+    hasBlueskyProfile: false,
     ...overrides,
   }
 }
@@ -285,6 +289,14 @@ describe('profile routes', () => {
       selectChain.where.mockResolvedValueOnce([{ count: 3 }])
       // 5th select: reactions on replies
       selectChain.where.mockResolvedValueOnce([{ count: 2 }])
+      // 6th select: votes on topics
+      selectChain.where.mockResolvedValueOnce([{ count: 4 }])
+      // 7th select: votes on replies
+      selectChain.where.mockResolvedValueOnce([{ count: 1 }])
+      // 8th selectDistinct: topic communities
+      selectDistinctChain.where.mockResolvedValueOnce([{ communityDid: 'did:plc:comm1' }])
+      // 9th selectDistinct: reply communities
+      selectDistinctChain.where.mockResolvedValueOnce([])
 
       const response = await app.inject({
         method: 'GET',
@@ -299,10 +311,16 @@ describe('profile routes', () => {
         bannerUrl: string | null
         bio: string | null
         role: string
+        followersCount: number
+        followsCount: number
+        atprotoPostsCount: number
+        hasBlueskyProfile: boolean
+        communityCount: number
         activity: {
           topicCount: number
           replyCount: number
           reactionsReceived: number
+          votesReceived: number
         }
       }>()
       expect(body.did).toBe(TEST_DID)
@@ -314,6 +332,12 @@ describe('profile routes', () => {
       expect(body.activity.topicCount).toBe(5)
       expect(body.activity.replyCount).toBe(10)
       expect(body.activity.reactionsReceived).toBe(5)
+      expect(body.activity.votesReceived).toBe(5)
+      expect(body.followersCount).toBe(0)
+      expect(body.followsCount).toBe(0)
+      expect(body.atprotoPostsCount).toBe(0)
+      expect(body.hasBlueskyProfile).toBe(false)
+      expect(body.communityCount).toBe(1)
     })
 
     it('returns null for bannerUrl and bio when not set', async () => {
@@ -322,6 +346,12 @@ describe('profile routes', () => {
       selectChain.where.mockResolvedValueOnce([{ count: 0 }])
       selectChain.where.mockResolvedValueOnce([{ count: 0 }])
       selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      // votes on topics + replies
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      // communityCount
+      selectDistinctChain.where.mockResolvedValueOnce([])
+      selectDistinctChain.where.mockResolvedValueOnce([])
 
       const response = await app.inject({
         method: 'GET',
@@ -348,7 +378,20 @@ describe('profile routes', () => {
       selectChain.where.mockResolvedValueOnce([{ count: 0 }])
       // 5th select: reactions on replies
       selectChain.where.mockResolvedValueOnce([{ count: 0 }])
-      // 6th select: community_profiles override
+      // votes on topics + replies
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      // communityCount
+      selectDistinctChain.where.mockResolvedValueOnce([])
+      selectDistinctChain.where.mockResolvedValueOnce([])
+      // community-scoped counts (6 queries)
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      // community_profiles override
       selectChain.where.mockResolvedValueOnce([
         {
           did: TEST_DID,
@@ -391,7 +434,20 @@ describe('profile routes', () => {
       selectChain.where.mockResolvedValueOnce([{ count: 0 }])
       selectChain.where.mockResolvedValueOnce([{ count: 0 }])
       selectChain.where.mockResolvedValueOnce([{ count: 0 }])
-      // 6th select: no community_profiles row
+      // votes on topics + replies
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      // communityCount
+      selectDistinctChain.where.mockResolvedValueOnce([])
+      selectDistinctChain.where.mockResolvedValueOnce([])
+      // community-scoped counts (6 queries)
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      // no community_profiles row
       selectChain.where.mockResolvedValueOnce([])
 
       const response = await app.inject({
@@ -430,6 +486,12 @@ describe('profile routes', () => {
       selectChain.where.mockResolvedValueOnce([])
       selectChain.where.mockResolvedValueOnce([])
       selectChain.where.mockResolvedValueOnce([])
+      // votes on topics + replies
+      selectChain.where.mockResolvedValueOnce([])
+      selectChain.where.mockResolvedValueOnce([])
+      // communityCount
+      selectDistinctChain.where.mockResolvedValueOnce([])
+      selectDistinctChain.where.mockResolvedValueOnce([])
 
       const response = await app.inject({
         method: 'GET',
@@ -442,11 +504,13 @@ describe('profile routes', () => {
           topicCount: number
           replyCount: number
           reactionsReceived: number
+          votesReceived: number
         }
       }>()
       expect(body.activity.topicCount).toBe(0)
       expect(body.activity.replyCount).toBe(0)
       expect(body.activity.reactionsReceived).toBe(0)
+      expect(body.activity.votesReceived).toBe(0)
     })
 
     it('returns null for displayName and avatarUrl when user fields are undefined', async () => {
@@ -457,6 +521,12 @@ describe('profile routes', () => {
       selectChain.where.mockResolvedValueOnce([{ count: 0 }])
       selectChain.where.mockResolvedValueOnce([{ count: 0 }])
       selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      // votes on topics + replies
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      // communityCount
+      selectDistinctChain.where.mockResolvedValueOnce([])
+      selectDistinctChain.where.mockResolvedValueOnce([])
 
       const response = await app.inject({
         method: 'GET',
@@ -478,6 +548,12 @@ describe('profile routes', () => {
       selectChain.where.mockResolvedValueOnce([{ count: 0 }])
       selectChain.where.mockResolvedValueOnce([{ count: 0 }])
       selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      // votes on topics + replies
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      // communityCount
+      selectDistinctChain.where.mockResolvedValueOnce([])
+      selectDistinctChain.where.mockResolvedValueOnce([])
 
       const response = await app.inject({
         method: 'GET',
@@ -491,6 +567,118 @@ describe('profile routes', () => {
       }>()
       expect(body.firstSeenAt).toBe(TEST_NOW)
       expect(body.lastActiveAt).toBe(TEST_NOW)
+    })
+
+    // -----------------------------------------------------------------------
+    // Community-scoped activity
+    // -----------------------------------------------------------------------
+
+    it('returns community-scoped activity when communityDid is provided', async () => {
+      // 1: user by handle
+      selectChain.where.mockResolvedValueOnce([
+        sampleUserRow({
+          followersCount: 50,
+          followsCount: 30,
+          atprotoPostsCount: 100,
+          hasBlueskyProfile: true,
+        }),
+      ])
+      // 2-5: global counts
+      selectChain.where.mockResolvedValueOnce([{ count: 10 }]) // topics
+      selectChain.where.mockResolvedValueOnce([{ count: 20 }]) // replies
+      selectChain.where.mockResolvedValueOnce([{ count: 5 }]) // reactions on topics
+      selectChain.where.mockResolvedValueOnce([{ count: 3 }]) // reactions on replies
+      // 6-7: votes
+      selectChain.where.mockResolvedValueOnce([{ count: 2 }]) // votes on topics
+      selectChain.where.mockResolvedValueOnce([{ count: 1 }]) // votes on replies
+      // 8-9: communityCount
+      selectDistinctChain.where.mockResolvedValueOnce([
+        { communityDid: 'did:plc:comm1' },
+        { communityDid: 'did:plc:comm2' },
+      ])
+      selectDistinctChain.where.mockResolvedValueOnce([{ communityDid: 'did:plc:comm1' }])
+      // 10-15: community-scoped counts
+      selectChain.where.mockResolvedValueOnce([{ count: 3 }]) // scoped topics
+      selectChain.where.mockResolvedValueOnce([{ count: 8 }]) // scoped replies
+      selectChain.where.mockResolvedValueOnce([{ count: 2 }]) // scoped reactions on topics
+      selectChain.where.mockResolvedValueOnce([{ count: 1 }]) // scoped reactions on replies
+      selectChain.where.mockResolvedValueOnce([{ count: 1 }]) // scoped votes on topics
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }]) // scoped votes on replies
+      // community profile override
+      selectChain.where.mockResolvedValueOnce([])
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/users/${TEST_HANDLE}?communityDid=${COMMUNITY_DID}`,
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = response.json<{
+        activity: {
+          topicCount: number
+          replyCount: number
+          reactionsReceived: number
+          votesReceived: number
+        }
+        globalActivity: {
+          topicCount: number
+          replyCount: number
+          reactionsReceived: number
+          votesReceived: number
+        }
+        followersCount: number
+        hasBlueskyProfile: boolean
+      }>()
+      // Activity should be community-scoped
+      expect(body.activity.topicCount).toBe(3)
+      expect(body.activity.replyCount).toBe(8)
+      expect(body.activity.reactionsReceived).toBe(3)
+      expect(body.activity.votesReceived).toBe(1)
+      // Global activity should be present (2 communities)
+      expect(body.globalActivity).toBeDefined()
+      expect(body.globalActivity.topicCount).toBe(10)
+      // AT Protocol stats
+      expect(body.followersCount).toBe(50)
+      expect(body.hasBlueskyProfile).toBe(true)
+    })
+
+    it('omits globalActivity when user is in only 1 community', async () => {
+      selectChain.where.mockResolvedValueOnce([sampleUserRow()])
+      // global counts
+      selectChain.where.mockResolvedValueOnce([{ count: 5 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 10 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 3 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 2 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 1 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      // communityCount = 1
+      selectDistinctChain.where.mockResolvedValueOnce([{ communityDid: COMMUNITY_DID }])
+      selectDistinctChain.where.mockResolvedValueOnce([])
+      // community-scoped counts (same as global for 1 community)
+      selectChain.where.mockResolvedValueOnce([{ count: 5 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 10 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 3 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 2 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 1 }])
+      selectChain.where.mockResolvedValueOnce([{ count: 0 }])
+      // community override
+      selectChain.where.mockResolvedValueOnce([])
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/users/${TEST_HANDLE}?communityDid=${COMMUNITY_DID}`,
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = response.json<{
+        globalActivity?: {
+          topicCount: number
+          replyCount: number
+          reactionsReceived: number
+          votesReceived: number
+        }
+      }>()
+      expect(body.globalActivity).toBeUndefined()
     })
   })
 

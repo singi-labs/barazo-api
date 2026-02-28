@@ -25,6 +25,10 @@ export const users = pgTable(
       .default('safe'),
     /** Account creation date resolved from PLC directory on first encounter. */
     accountCreatedAt: timestamp('account_created_at', { withTimezone: true }),
+    followersCount: integer('followers_count').notNull().default(0),
+    followsCount: integer('follows_count').notNull().default(0),
+    atprotoPostsCount: integer('atproto_posts_count').notNull().default(0),
+    hasBlueskyProfile: boolean('has_bluesky_profile').notNull().default(false),
   },
   (table) => [
     index('users_role_elevated_idx')

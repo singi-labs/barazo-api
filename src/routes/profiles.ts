@@ -12,6 +12,7 @@ import { resolveProfile } from '../lib/resolve-profile.js'
 import { topics } from '../db/schema/topics.js'
 import { replies } from '../db/schema/replies.js'
 import { reactions } from '../db/schema/reactions.js'
+import { votes } from '../db/schema/votes.js'
 import { notifications } from '../db/schema/notifications.js'
 import { reports } from '../db/schema/reports.js'
 import { userPreferences, userCommunityPreferences } from '../db/schema/user-preferences.js'
@@ -37,12 +38,27 @@ const profileJsonSchema = {
     role: { type: 'string' as const },
     firstSeenAt: { type: 'string' as const, format: 'date-time' as const },
     lastActiveAt: { type: 'string' as const, format: 'date-time' as const },
+    followersCount: { type: 'number' as const },
+    followsCount: { type: 'number' as const },
+    atprotoPostsCount: { type: 'number' as const },
+    hasBlueskyProfile: { type: 'boolean' as const },
+    communityCount: { type: 'number' as const },
     activity: {
       type: 'object' as const,
       properties: {
         topicCount: { type: 'number' as const },
         replyCount: { type: 'number' as const },
         reactionsReceived: { type: 'number' as const },
+        votesReceived: { type: 'number' as const },
+      },
+    },
+    globalActivity: {
+      type: ['object', 'null'] as const,
+      properties: {
+        topicCount: { type: 'number' as const },
+        replyCount: { type: 'number' as const },
+        reactionsReceived: { type: 'number' as const },
+        votesReceived: { type: 'number' as const },
       },
     },
   },
@@ -239,6 +255,99 @@ export function profileRoutes(): FastifyPluginCallback {
         const reactionsReceived =
           (reactionsOnTopicsResult[0]?.count ?? 0) + (reactionsOnRepliesResult[0]?.count ?? 0)
 
+        // Count votes received on user's topics and replies
+        const votesOnTopicsResult = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(votes)
+          .where(
+            sql`${votes.subjectUri} IN (SELECT ${topics.uri} FROM ${topics} WHERE ${topics.authorDid} = ${user.did})`
+          )
+
+        const votesOnRepliesResult = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(votes)
+          .where(
+            sql`${votes.subjectUri} IN (SELECT ${replies.uri} FROM ${replies} WHERE ${replies.authorDid} = ${user.did})`
+          )
+
+        const votesReceived =
+          (votesOnTopicsResult[0]?.count ?? 0) + (votesOnRepliesResult[0]?.count ?? 0)
+
+        // Count distinct communities the user has contributed to
+        const topicCommResult = await db
+          .selectDistinct({ communityDid: topics.communityDid })
+          .from(topics)
+          .where(eq(topics.authorDid, user.did))
+
+        const replyCommResult = await db
+          .selectDistinct({ communityDid: replies.communityDid })
+          .from(replies)
+          .where(eq(replies.authorDid, user.did))
+
+        const allCommunities = new Set([
+          ...topicCommResult.map((r: { communityDid: string }) => r.communityDid),
+          ...replyCommResult.map((r: { communityDid: string }) => r.communityDid),
+        ])
+
+        const communityCount = allCommunities.size
+
+        // Community-scoped activity (when communityDid is provided)
+        let scopedActivity: {
+          topicCount: number
+          replyCount: number
+          reactionsReceived: number
+          votesReceived: number
+        } | null = null
+
+        if (communityDid) {
+          const scopedTopicResult = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(topics)
+            .where(and(eq(topics.authorDid, user.did), eq(topics.communityDid, communityDid)))
+
+          const scopedReplyResult = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(replies)
+            .where(and(eq(replies.authorDid, user.did), eq(replies.communityDid, communityDid)))
+
+          const scopedReactionsOnTopics = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(reactions)
+            .where(
+              sql`${reactions.subjectUri} IN (SELECT ${topics.uri} FROM ${topics} WHERE ${topics.authorDid} = ${user.did} AND ${topics.communityDid} = ${communityDid})`
+            )
+
+          const scopedReactionsOnReplies = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(reactions)
+            .where(
+              sql`${reactions.subjectUri} IN (SELECT ${replies.uri} FROM ${replies} WHERE ${replies.authorDid} = ${user.did} AND ${replies.communityDid} = ${communityDid})`
+            )
+
+          const scopedVotesOnTopics = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(votes)
+            .where(
+              sql`${votes.subjectUri} IN (SELECT ${topics.uri} FROM ${topics} WHERE ${topics.authorDid} = ${user.did} AND ${topics.communityDid} = ${communityDid})`
+            )
+
+          const scopedVotesOnReplies = await db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(votes)
+            .where(
+              sql`${votes.subjectUri} IN (SELECT ${replies.uri} FROM ${replies} WHERE ${replies.authorDid} = ${user.did} AND ${replies.communityDid} = ${communityDid})`
+            )
+
+          scopedActivity = {
+            topicCount: scopedTopicResult[0]?.count ?? 0,
+            replyCount: scopedReplyResult[0]?.count ?? 0,
+            reactionsReceived:
+              (scopedReactionsOnTopics[0]?.count ?? 0) + (scopedReactionsOnReplies[0]?.count ?? 0),
+            votesReceived:
+              (scopedVotesOnTopics[0]?.count ?? 0) + (scopedVotesOnReplies[0]?.count ?? 0),
+          }
+        }
+
         // Build source profile for resolution
         const sourceProfile = {
           did: user.did,
@@ -266,7 +375,14 @@ export function profileRoutes(): FastifyPluginCallback {
           resolved = resolveProfile(sourceProfile, override)
         }
 
-        return reply.status(200).send({
+        const globalActivity = {
+          topicCount,
+          replyCount,
+          reactionsReceived,
+          votesReceived,
+        }
+
+        const responseBody: Record<string, unknown> = {
           did: resolved.did,
           handle: resolved.handle,
           displayName: resolved.displayName,
@@ -276,12 +392,19 @@ export function profileRoutes(): FastifyPluginCallback {
           role: user.role,
           firstSeenAt: user.firstSeenAt.toISOString(),
           lastActiveAt: user.lastActiveAt.toISOString(),
-          activity: {
-            topicCount,
-            replyCount,
-            reactionsReceived,
-          },
-        })
+          followersCount: user.followersCount,
+          followsCount: user.followsCount,
+          atprotoPostsCount: user.atprotoPostsCount,
+          hasBlueskyProfile: user.hasBlueskyProfile,
+          communityCount,
+          activity: scopedActivity ?? globalActivity,
+        }
+
+        if (communityDid && communityCount >= 2) {
+          responseBody['globalActivity'] = globalActivity
+        }
+
+        return reply.status(200).send(responseBody)
       }
     )
 
