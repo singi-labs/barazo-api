@@ -1,4 +1,5 @@
 import { eq, sql } from 'drizzle-orm'
+import type { TopicReplyInput } from '@barazo-forum/lexicons'
 import { replies } from '../../db/schema/replies.js'
 import { topics } from '../../db/schema/topics.js'
 import type { Database } from '../../db/index.js'
@@ -12,7 +13,7 @@ interface CreateParams {
   rkey: string
   did: string
   cid: string
-  record: Record<string, unknown>
+  record: TopicReplyInput
   live: boolean
   trustStatus: TrustStatus
 }
@@ -22,7 +23,7 @@ interface UpdateParams {
   rkey: string
   did: string
   cid: string
-  record: Record<string, unknown>
+  record: TopicReplyInput
   live: boolean
   trustStatus: TrustStatus
 }
@@ -43,9 +44,8 @@ export class ReplyIndexer {
   async handleCreate(params: CreateParams): Promise<void> {
     const { uri, rkey, did, cid, record, live, trustStatus } = params
 
-    const root = record['root'] as { uri: string; cid: string }
-    const parent = record['parent'] as { uri: string; cid: string }
-    const clientCreatedAt = new Date(record['createdAt'] as string)
+    const { root, parent } = record
+    const clientCreatedAt = new Date(record.createdAt)
     const createdAt = live ? clampCreatedAt(clientCreatedAt) : clientCreatedAt
 
     await this.db.transaction(async (tx) => {
@@ -55,15 +55,15 @@ export class ReplyIndexer {
           uri,
           rkey,
           authorDid: did,
-          content: sanitizeHtml(record['content'] as string),
-          contentFormat: (record['contentFormat'] as string | undefined) ?? null,
+          content: sanitizeHtml(record.content),
+          contentFormat: record.contentFormat ?? null,
           rootUri: root.uri,
           rootCid: root.cid,
           parentUri: parent.uri,
           parentCid: parent.cid,
-          communityDid: record['community'] as string,
+          communityDid: record.community,
           cid,
-          labels: (record['labels'] as { values: { val: string }[] } | undefined) ?? null,
+          labels: record.labels ?? null,
           createdAt,
           trustStatus,
         })
@@ -88,10 +88,10 @@ export class ReplyIndexer {
     await this.db
       .update(replies)
       .set({
-        content: sanitizeHtml(record['content'] as string),
-        contentFormat: (record['contentFormat'] as string | undefined) ?? null,
+        content: sanitizeHtml(record.content),
+        contentFormat: record.contentFormat ?? null,
         cid,
-        labels: (record['labels'] as { values: { val: string }[] } | undefined) ?? null,
+        labels: record.labels ?? null,
         indexedAt: new Date(),
       })
       .where(eq(replies.uri, uri))

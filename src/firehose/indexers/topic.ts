@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm'
+import type { TopicPostInput } from '@barazo-forum/lexicons'
 import { topics } from '../../db/schema/topics.js'
 import type { Database } from '../../db/index.js'
 import type { Logger } from '../../lib/logger.js'
@@ -11,7 +12,7 @@ interface CreateParams {
   rkey: string
   did: string
   cid: string
-  record: Record<string, unknown>
+  record: TopicPostInput
   live: boolean
   trustStatus: TrustStatus
 }
@@ -30,7 +31,7 @@ export class TopicIndexer {
 
   async handleCreate(params: CreateParams): Promise<void> {
     const { uri, rkey, did, cid, record, live, trustStatus } = params
-    const clientCreatedAt = new Date(record['createdAt'] as string)
+    const clientCreatedAt = new Date(record.createdAt)
     const createdAt = live ? clampCreatedAt(clientCreatedAt) : clientCreatedAt
 
     await this.db
@@ -39,14 +40,14 @@ export class TopicIndexer {
         uri,
         rkey,
         authorDid: did,
-        title: sanitizeText(record['title'] as string),
-        content: sanitizeHtml(record['content'] as string),
-        contentFormat: (record['contentFormat'] as string | undefined) ?? null,
-        category: record['category'] as string,
-        tags: (record['tags'] as string[] | undefined) ?? null,
-        communityDid: record['community'] as string,
+        title: sanitizeText(record.title),
+        content: sanitizeHtml(record.content),
+        contentFormat: record.contentFormat ?? null,
+        category: record.category,
+        tags: record.tags ?? null,
+        communityDid: record.community,
         cid,
-        labels: (record['labels'] as { values: { val: string }[] } | undefined) ?? null,
+        labels: record.labels ?? null,
         createdAt,
         lastActivityAt: createdAt,
         trustStatus,
@@ -54,13 +55,13 @@ export class TopicIndexer {
       .onConflictDoUpdate({
         target: topics.uri,
         set: {
-          title: sanitizeText(record['title'] as string),
-          content: sanitizeHtml(record['content'] as string),
-          contentFormat: (record['contentFormat'] as string | undefined) ?? null,
-          category: record['category'] as string,
-          tags: (record['tags'] as string[] | undefined) ?? null,
+          title: sanitizeText(record.title),
+          content: sanitizeHtml(record.content),
+          contentFormat: record.contentFormat ?? null,
+          category: record.category,
+          tags: record.tags ?? null,
           cid,
-          labels: (record['labels'] as { values: { val: string }[] } | undefined) ?? null,
+          labels: record.labels ?? null,
           indexedAt: new Date(),
         },
       })
@@ -74,13 +75,13 @@ export class TopicIndexer {
     await this.db
       .update(topics)
       .set({
-        title: sanitizeText(record['title'] as string),
-        content: sanitizeHtml(record['content'] as string),
-        contentFormat: (record['contentFormat'] as string | undefined) ?? null,
-        category: record['category'] as string,
-        tags: (record['tags'] as string[] | undefined) ?? null,
+        title: sanitizeText(record.title),
+        content: sanitizeHtml(record.content),
+        contentFormat: record.contentFormat ?? null,
+        category: record.category,
+        tags: record.tags ?? null,
         cid,
-        labels: (record['labels'] as { values: { val: string }[] } | undefined) ?? null,
+        labels: record.labels ?? null,
         indexedAt: new Date(),
       })
       .where(eq(topics.uri, uri))

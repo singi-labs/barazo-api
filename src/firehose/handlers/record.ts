@@ -1,4 +1,10 @@
 import { eq } from 'drizzle-orm'
+import type {
+  TopicPostInput,
+  TopicReplyInput,
+  ReactionInput,
+  VoteInput,
+} from '@barazo-forum/lexicons'
 import { users } from '../../db/schema/users.js'
 import { replies } from '../../db/schema/replies.js'
 import { reactions } from '../../db/schema/reactions.js'
@@ -8,6 +14,7 @@ import type { Logger } from '../../lib/logger.js'
 import type { RecordEvent } from '../types.js'
 import { COLLECTION_MAP, isSupportedCollection } from '../types.js'
 import { validateRecord } from '../validation.js'
+import type { CollectionDataMap } from '../validation.js'
 import type { TopicIndexer } from '../indexers/topic.js'
 import type { ReplyIndexer } from '../indexers/reply.js'
 import type { ReactionIndexer } from '../indexers/reaction.js'
@@ -67,20 +74,19 @@ export class RecordHandler {
         trustStatus = await this.upsertUserWithTrustCheck(did)
       }
 
-      const params = {
+      const baseParams = {
         uri,
         rkey,
         did,
         cid: cid ?? '',
-        record,
         live,
         trustStatus,
       }
 
       if (action === 'create') {
-        await this.dispatchCreate(indexerName, params)
+        await this.dispatchCreate(indexerName, baseParams, validation.data)
       } else {
-        await this.dispatchUpdate(indexerName, params)
+        await this.dispatchUpdate(indexerName, baseParams, validation.data)
       }
     } catch (err) {
       this.logger.error(
@@ -97,23 +103,23 @@ export class RecordHandler {
       rkey: string
       did: string
       cid: string
-      record: Record<string, unknown>
       live: boolean
       trustStatus: TrustStatus
-    }
+    },
+    data: CollectionDataMap[keyof CollectionDataMap]
   ): Promise<void> {
     switch (indexerName) {
       case 'topic':
-        await this.indexers.topic.handleCreate(params)
+        await this.indexers.topic.handleCreate({ ...params, record: data as TopicPostInput })
         break
       case 'reply':
-        await this.indexers.reply.handleCreate(params)
+        await this.indexers.reply.handleCreate({ ...params, record: data as TopicReplyInput })
         break
       case 'reaction':
-        await this.indexers.reaction.handleCreate(params)
+        await this.indexers.reaction.handleCreate({ ...params, record: data as ReactionInput })
         break
       case 'vote':
-        await this.indexers.vote.handleCreate(params)
+        await this.indexers.vote.handleCreate({ ...params, record: data as VoteInput })
         break
     }
   }
@@ -125,17 +131,17 @@ export class RecordHandler {
       rkey: string
       did: string
       cid: string
-      record: Record<string, unknown>
       live: boolean
       trustStatus: TrustStatus
-    }
+    },
+    data: CollectionDataMap[keyof CollectionDataMap]
   ): Promise<void> {
     switch (indexerName) {
       case 'topic':
-        await this.indexers.topic.handleUpdate(params)
+        await this.indexers.topic.handleUpdate({ ...params, record: data as TopicPostInput })
         break
       case 'reply':
-        await this.indexers.reply.handleUpdate(params)
+        await this.indexers.reply.handleUpdate({ ...params, record: data as TopicReplyInput })
         break
       // Reactions and votes don't have update
     }

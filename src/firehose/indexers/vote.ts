@@ -1,4 +1,5 @@
 import { eq, sql } from 'drizzle-orm'
+import type { VoteInput } from '@barazo-forum/lexicons'
 import { votes } from '../../db/schema/votes.js'
 import { topics } from '../../db/schema/topics.js'
 import { replies } from '../../db/schema/replies.js'
@@ -18,7 +19,7 @@ interface CreateParams {
   rkey: string
   did: string
   cid: string
-  record: Record<string, unknown>
+  record: VoteInput
   live: boolean
 }
 
@@ -37,8 +38,8 @@ export class VoteIndexer {
 
   async handleCreate(params: CreateParams): Promise<void> {
     const { uri, rkey, did, cid, record, live } = params
-    const subject = record['subject'] as { uri: string; cid: string }
-    const clientCreatedAt = new Date(record['createdAt'] as string)
+    const { subject } = record
+    const clientCreatedAt = new Date(record.createdAt)
     const createdAt = live ? clampCreatedAt(clientCreatedAt) : clientCreatedAt
 
     await this.db.transaction(async (tx) => {
@@ -50,8 +51,8 @@ export class VoteIndexer {
           authorDid: did,
           subjectUri: subject.uri,
           subjectCid: subject.cid,
-          direction: record['direction'] as string,
-          communityDid: record['community'] as string,
+          direction: record.direction,
+          communityDid: record.community,
           cid,
           createdAt,
         })

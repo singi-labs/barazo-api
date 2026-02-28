@@ -28,16 +28,6 @@ export interface IdentityEvent {
   status: RepoStatus
 }
 
-/** Parameters passed to indexer handlers. */
-export interface IndexerParams {
-  uri: string
-  rkey: string
-  did: string
-  cid: string
-  record: Record<string, unknown>
-  live: boolean
-}
-
 /** Interface for Tap client operations (for testability). */
 export interface TapClient {
   addRepos(dids: string[]): Promise<void>
