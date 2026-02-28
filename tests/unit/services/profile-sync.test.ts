@@ -58,6 +58,29 @@ const MOCK_PROFILE_RESPONSE = {
     avatar: 'https://cdn.bsky.app/img/avatar/plain/did:plc:testuser123456789012/bafkreiabc@jpeg',
     banner: 'https://cdn.bsky.app/img/banner/plain/did:plc:testuser123456789012/bafkreixyz@jpeg',
     description: 'Exploring the decentralized web.',
+    labels: [
+      {
+        src: TEST_DID,
+        uri: `at://${TEST_DID}`,
+        val: 'adult-content',
+        neg: false,
+        cts: '2026-01-15T10:00:00.000Z',
+      },
+      {
+        src: 'did:plc:ozone-mod-service',
+        uri: `at://${TEST_DID}`,
+        val: '!warn',
+        neg: false,
+        cts: '2026-01-20T12:00:00.000Z',
+      },
+      {
+        src: TEST_DID,
+        uri: `at://${TEST_DID}`,
+        val: 'old-label',
+        neg: true,
+        cts: '2026-01-25T08:00:00.000Z',
+      },
+    ],
   },
 }
 
@@ -105,6 +128,15 @@ describe('ProfileSyncService', () => {
       bannerUrl:
         'https://cdn.bsky.app/img/banner/plain/did:plc:testuser123456789012/bafkreixyz@jpeg',
       bio: 'Exploring the decentralized web.',
+      labels: [
+        { val: 'adult-content', src: TEST_DID, neg: false, cts: '2026-01-15T10:00:00.000Z' },
+        {
+          val: '!warn',
+          src: 'did:plc:ozone-mod-service',
+          neg: false,
+          cts: '2026-01-20T12:00:00.000Z',
+        },
+      ],
     })
   })
 
@@ -121,6 +153,32 @@ describe('ProfileSyncService', () => {
   })
 
   // -------------------------------------------------------------------------
+  // Label capture
+  // -------------------------------------------------------------------------
+
+  it('returns labels from profile, filtering out negated labels', async () => {
+    const result = await service.syncProfile(TEST_DID)
+
+    expect(result.labels).toStrictEqual([
+      { val: 'adult-content', src: TEST_DID, neg: false, cts: '2026-01-15T10:00:00.000Z' },
+      {
+        val: '!warn',
+        src: 'did:plc:ozone-mod-service',
+        neg: false,
+        cts: '2026-01-20T12:00:00.000Z',
+      },
+    ])
+  })
+
+  it('returns empty labels array when profile has no labels', async () => {
+    mockGetProfile.mockResolvedValue(MOCK_MINIMAL_PROFILE_RESPONSE)
+
+    const result = await service.syncProfile(TEST_DID)
+
+    expect(result.labels).toStrictEqual([])
+  })
+
+  // -------------------------------------------------------------------------
   // No profile fields (minimal profile)
   // -------------------------------------------------------------------------
 
@@ -134,6 +192,7 @@ describe('ProfileSyncService', () => {
       avatarUrl: null,
       bannerUrl: null,
       bio: null,
+      labels: [],
     })
   })
 
@@ -151,6 +210,7 @@ describe('ProfileSyncService', () => {
       avatarUrl: null,
       bannerUrl: null,
       bio: null,
+      labels: [],
     })
   })
 
@@ -190,6 +250,15 @@ describe('ProfileSyncService', () => {
       bannerUrl:
         'https://cdn.bsky.app/img/banner/plain/did:plc:testuser123456789012/bafkreixyz@jpeg',
       bio: 'Exploring the decentralized web.',
+      labels: [
+        { val: 'adult-content', src: TEST_DID, neg: false, cts: '2026-01-15T10:00:00.000Z' },
+        {
+          val: '!warn',
+          src: 'did:plc:ozone-mod-service',
+          neg: false,
+          cts: '2026-01-20T12:00:00.000Z',
+        },
+      ],
     })
   })
 
