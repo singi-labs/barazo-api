@@ -14,6 +14,7 @@ export interface ProfileData {
   avatarUrl: string | null
   bannerUrl: string | null
   bio: string | null
+  labels: Array<{ val: string; src: string; neg: boolean; cts: string }>
 }
 
 export interface ProfileSyncService {
@@ -26,6 +27,7 @@ const NULL_PROFILE: ProfileData = {
   avatarUrl: null,
   bannerUrl: null,
   bio: null,
+  labels: [],
 }
 
 // ---------------------------------------------------------------------------
@@ -38,10 +40,12 @@ const BSKY_PUBLIC_API = 'https://public.api.bsky.app'
 interface AgentLike {
   getProfile(params: { actor: string }): Promise<{
     data: {
+      did?: string
       displayName?: string
       avatar?: string
       banner?: string
       description?: string
+      labels?: Array<{ val: string; src: string; uri: string; neg?: boolean; cts: string }>
     }
   }>
 }
@@ -83,11 +87,17 @@ export function createProfileSyncService(
       try {
         const agent = agentFactory.createAgent()
         const response = await agent.getProfile({ actor: did })
+        const rawLabels = response.data.labels ?? []
+        const labels = rawLabels
+          .filter((l) => !l.neg)
+          .map((l) => ({ val: l.val, src: l.src, neg: false as const, cts: l.cts }))
+
         profileData = {
           displayName: response.data.displayName ?? null,
           avatarUrl: response.data.avatar ?? null,
           bannerUrl: response.data.banner ?? null,
           bio: response.data.description ?? null,
+          labels,
         }
       } catch (err: unknown) {
         logger.debug({ did, err }, 'profile sync failed: could not fetch profile from public API')
@@ -103,6 +113,7 @@ export function createProfileSyncService(
             avatarUrl: profileData.avatarUrl,
             bannerUrl: profileData.bannerUrl,
             bio: profileData.bio,
+            atprotoLabels: profileData.labels,
             lastActiveAt: new Date(),
           })
           .where(eq(users.did, did))
