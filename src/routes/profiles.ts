@@ -16,6 +16,7 @@ import { votes } from '../db/schema/votes.js'
 import { notifications } from '../db/schema/notifications.js'
 import { reports } from '../db/schema/reports.js'
 import { userPreferences, userCommunityPreferences } from '../db/schema/user-preferences.js'
+import { communitySettings } from '../db/schema/community-settings.js'
 import { computeClusterDiversityFactor } from '../services/cluster-diversity.js'
 import { sybilClusterMembers } from '../db/schema/sybil-cluster-members.js'
 import { sybilClusters } from '../db/schema/sybil-clusters.js'
@@ -183,10 +184,11 @@ function defaultCommunityPreferences(communityDid: string) {
  * - GET    /api/users/:handle                              -- Public profile
  * - GET    /api/users/:handle/reputation                   -- Reputation score
  * - POST   /api/users/me/age-declaration                   -- Declare age
- * - GET    /api/users/me/preferences                       -- Global preferences
- * - PUT    /api/users/me/preferences                       -- Update global preferences
- * - GET    /api/users/me/communities/:communityId/preferences -- Per-community prefs
- * - PUT    /api/users/me/communities/:communityId/preferences -- Update per-community prefs
+ * - GET    /api/users/me/preferences                              -- Global preferences
+ * - PUT    /api/users/me/preferences                              -- Update global preferences
+ * - GET    /api/users/me/preferences/communities                  -- List community overrides
+ * - GET    /api/users/me/preferences/communities/:communityDid    -- Per-community prefs
+ * - PUT    /api/users/me/preferences/communities/:communityDid    -- Update per-community prefs
  * - DELETE /api/users/me                                   -- GDPR Art. 17 purge
  */
 export function profileRoutes(): FastifyPluginCallback {
@@ -840,11 +842,85 @@ export function profileRoutes(): FastifyPluginCallback {
     )
 
     // -------------------------------------------------------------------
-    // GET /api/users/me/communities/:communityId/preferences (auth required)
+    // GET /api/users/me/preferences/communities (auth required) -- list
     // -------------------------------------------------------------------
 
     app.get(
-      '/api/users/me/communities/:communityId/preferences',
+      '/api/users/me/preferences/communities',
+      {
+        preHandler: [authMiddleware.requireAuth],
+        schema: {
+          tags: ['Profiles'],
+          summary: 'List all per-community user preference overrides',
+          security: [{ bearerAuth: [] }],
+          response: {
+            200: {
+              type: 'object' as const,
+              properties: {
+                communities: {
+                  type: 'array' as const,
+                  items: {
+                    type: 'object' as const,
+                    properties: {
+                      communityDid: { type: 'string' as const },
+                      communityName: { type: 'string' as const },
+                      maturityLevel: { type: 'string' as const },
+                      mutedWords: {
+                        type: 'array' as const,
+                        items: { type: 'string' as const },
+                      },
+                      blockedDids: {
+                        type: 'array' as const,
+                        items: { type: 'string' as const },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            401: errorResponseSchema,
+          },
+        },
+      },
+      async (request, reply) => {
+        const requestUser = request.user
+        if (!requestUser) {
+          return reply.status(401).send({ error: 'Authentication required' })
+        }
+
+        const rows = await db
+          .select({
+            communityDid: userCommunityPreferences.communityDid,
+            maturityOverride: userCommunityPreferences.maturityOverride,
+            mutedWords: userCommunityPreferences.mutedWords,
+            blockedDids: userCommunityPreferences.blockedDids,
+            communityName: communitySettings.communityName,
+          })
+          .from(userCommunityPreferences)
+          .leftJoin(
+            communitySettings,
+            eq(userCommunityPreferences.communityDid, communitySettings.communityDid)
+          )
+          .where(eq(userCommunityPreferences.did, requestUser.did))
+
+        const communities = rows.map((row) => ({
+          communityDid: row.communityDid,
+          communityName: row.communityName ?? row.communityDid,
+          maturityLevel: row.maturityOverride ?? 'inherit',
+          mutedWords: row.mutedWords ?? [],
+          blockedDids: row.blockedDids ?? [],
+        }))
+
+        return reply.status(200).send({ communities })
+      }
+    )
+
+    // -------------------------------------------------------------------
+    // GET /api/users/me/preferences/communities/:communityDid (auth required)
+    // -------------------------------------------------------------------
+
+    app.get(
+      '/api/users/me/preferences/communities/:communityDid',
       {
         preHandler: [authMiddleware.requireAuth],
         schema: {
@@ -853,9 +929,9 @@ export function profileRoutes(): FastifyPluginCallback {
           security: [{ bearerAuth: [] }],
           params: {
             type: 'object',
-            required: ['communityId'],
+            required: ['communityDid'],
             properties: {
-              communityId: { type: 'string' },
+              communityDid: { type: 'string' },
             },
           },
           response: {
@@ -870,7 +946,7 @@ export function profileRoutes(): FastifyPluginCallback {
           return reply.status(401).send({ error: 'Authentication required' })
         }
 
-        const { communityId } = request.params as { communityId: string }
+        const { communityDid } = request.params as { communityDid: string }
 
         const rows = await db
           .select()
@@ -878,13 +954,13 @@ export function profileRoutes(): FastifyPluginCallback {
           .where(
             and(
               eq(userCommunityPreferences.did, requestUser.did),
-              eq(userCommunityPreferences.communityDid, communityId)
+              eq(userCommunityPreferences.communityDid, communityDid)
             )
           )
 
         const prefs = rows[0]
         if (!prefs) {
-          return reply.status(200).send(defaultCommunityPreferences(communityId))
+          return reply.status(200).send(defaultCommunityPreferences(communityDid))
         }
 
         return reply.status(200).send({
@@ -900,11 +976,11 @@ export function profileRoutes(): FastifyPluginCallback {
     )
 
     // -------------------------------------------------------------------
-    // PUT /api/users/me/communities/:communityId/preferences (auth required)
+    // PUT /api/users/me/preferences/communities/:communityDid (auth required)
     // -------------------------------------------------------------------
 
     app.put(
-      '/api/users/me/communities/:communityId/preferences',
+      '/api/users/me/preferences/communities/:communityDid',
       {
         preHandler: [authMiddleware.requireAuth],
         schema: {
@@ -913,9 +989,9 @@ export function profileRoutes(): FastifyPluginCallback {
           security: [{ bearerAuth: [] }],
           params: {
             type: 'object',
-            required: ['communityId'],
+            required: ['communityDid'],
             properties: {
-              communityId: { type: 'string' },
+              communityDid: { type: 'string' },
             },
           },
           body: {
@@ -961,7 +1037,7 @@ export function profileRoutes(): FastifyPluginCallback {
           return reply.status(401).send({ error: 'Authentication required' })
         }
 
-        const { communityId } = request.params as { communityId: string }
+        const { communityDid } = request.params as { communityDid: string }
 
         const parsed = communityPreferencesSchema.safeParse(request.body)
         if (!parsed.success) {
@@ -992,7 +1068,7 @@ export function profileRoutes(): FastifyPluginCallback {
           .insert(userCommunityPreferences)
           .values({
             did: requestUser.did,
-            communityDid: communityId,
+            communityDid,
             ...parsed.data,
             updatedAt: now,
           })
@@ -1008,13 +1084,13 @@ export function profileRoutes(): FastifyPluginCallback {
           .where(
             and(
               eq(userCommunityPreferences.did, requestUser.did),
-              eq(userCommunityPreferences.communityDid, communityId)
+              eq(userCommunityPreferences.communityDid, communityDid)
             )
           )
 
         const prefs = rows[0]
         if (!prefs) {
-          return reply.status(200).send(defaultCommunityPreferences(communityId))
+          return reply.status(200).send(defaultCommunityPreferences(communityDid))
         }
 
         return reply.status(200).send({

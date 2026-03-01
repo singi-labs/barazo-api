@@ -1805,10 +1805,140 @@ describe('profile routes', () => {
   })
 
   // =========================================================================
-  // GET /api/users/me/communities/:communityId/preferences
+  // GET /api/users/me/preferences/communities (list)
   // =========================================================================
 
-  describe('GET /api/users/me/communities/:communityId/preferences', () => {
+  describe('GET /api/users/me/preferences/communities', () => {
+    let app: FastifyInstance
+
+    beforeAll(async () => {
+      app = await buildTestApp(testUser())
+    })
+
+    afterAll(async () => {
+      await app.close()
+    })
+
+    beforeEach(() => {
+      vi.clearAllMocks()
+      resetAllDbMocks()
+    })
+
+    it('returns empty list when user has no community overrides', async () => {
+      selectChain.where.mockResolvedValueOnce([])
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/users/me/preferences/communities',
+        headers: { authorization: 'Bearer test-token' },
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = response.json<{ communities: unknown[] }>()
+      expect(body.communities).toEqual([])
+    })
+
+    it('returns community overrides with mapped field names', async () => {
+      selectChain.where.mockResolvedValueOnce([
+        {
+          communityDid: COMMUNITY_DID,
+          maturityOverride: 'mature',
+          mutedWords: ['spoiler'],
+          blockedDids: ['did:plc:blocked1'],
+          communityName: 'Test Community',
+        },
+      ])
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/users/me/preferences/communities',
+        headers: { authorization: 'Bearer test-token' },
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = response.json<{
+        communities: {
+          communityDid: string
+          communityName: string
+          maturityLevel: string
+          mutedWords: string[]
+          blockedDids: string[]
+        }[]
+      }>()
+      expect(body.communities).toHaveLength(1)
+      expect(body.communities[0].communityDid).toBe(COMMUNITY_DID)
+      expect(body.communities[0].communityName).toBe('Test Community')
+      expect(body.communities[0].maturityLevel).toBe('mature')
+      expect(body.communities[0].mutedWords).toEqual(['spoiler'])
+      expect(body.communities[0].blockedDids).toEqual(['did:plc:blocked1'])
+    })
+
+    it('maps null maturityOverride to "inherit"', async () => {
+      selectChain.where.mockResolvedValueOnce([
+        {
+          communityDid: COMMUNITY_DID,
+          maturityOverride: null,
+          mutedWords: null,
+          blockedDids: null,
+          communityName: 'Test Community',
+        },
+      ])
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/users/me/preferences/communities',
+        headers: { authorization: 'Bearer test-token' },
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = response.json<{
+        communities: { maturityLevel: string; mutedWords: string[]; blockedDids: string[] }[]
+      }>()
+      expect(body.communities[0].maturityLevel).toBe('inherit')
+      expect(body.communities[0].mutedWords).toEqual([])
+      expect(body.communities[0].blockedDids).toEqual([])
+    })
+
+    it('falls back to communityDid when communityName is null', async () => {
+      selectChain.where.mockResolvedValueOnce([
+        {
+          communityDid: COMMUNITY_DID,
+          maturityOverride: null,
+          mutedWords: null,
+          blockedDids: null,
+          communityName: null,
+        },
+      ])
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/users/me/preferences/communities',
+        headers: { authorization: 'Bearer test-token' },
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = response.json<{ communities: { communityName: string }[] }>()
+      expect(body.communities[0].communityName).toBe(COMMUNITY_DID)
+    })
+
+    it('returns 401 when not authenticated', async () => {
+      const noAuthApp = await buildTestApp(undefined)
+
+      const response = await noAuthApp.inject({
+        method: 'GET',
+        url: '/api/users/me/preferences/communities',
+      })
+
+      expect(response.statusCode).toBe(401)
+      await noAuthApp.close()
+    })
+  })
+
+  // =========================================================================
+  // GET /api/users/me/preferences/communities/:communityDid
+  // =========================================================================
+
+  describe('GET /api/users/me/preferences/communities/:communityDid', () => {
     let app: FastifyInstance
 
     beforeAll(async () => {
@@ -1839,7 +1969,7 @@ describe('profile routes', () => {
 
       const response = await app.inject({
         method: 'GET',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
       })
 
@@ -1859,7 +1989,7 @@ describe('profile routes', () => {
 
       const response = await app.inject({
         method: 'GET',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
       })
 
@@ -1894,7 +2024,7 @@ describe('profile routes', () => {
 
       const response = await app.inject({
         method: 'GET',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
       })
 
@@ -1939,7 +2069,7 @@ describe('profile routes', () => {
 
       const response = await app.inject({
         method: 'GET',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
       })
 
@@ -1963,7 +2093,7 @@ describe('profile routes', () => {
 
       const response = await noAuthApp.inject({
         method: 'GET',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
       })
 
       expect(response.statusCode).toBe(401)
@@ -1972,10 +2102,10 @@ describe('profile routes', () => {
   })
 
   // =========================================================================
-  // PUT /api/users/me/communities/:communityId/preferences
+  // PUT /api/users/me/preferences/communities/:communityDid
   // =========================================================================
 
-  describe('PUT /api/users/me/communities/:communityId/preferences', () => {
+  describe('PUT /api/users/me/preferences/communities/:communityDid', () => {
     let app: FastifyInstance
 
     beforeAll(async () => {
@@ -2002,7 +2132,7 @@ describe('profile routes', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
         payload: {
           maturityOverride: 'sfw',
@@ -2027,7 +2157,7 @@ describe('profile routes', () => {
 
       const response = await noAuthApp.inject({
         method: 'PUT',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         payload: { maturityOverride: 'sfw' },
       })
 
@@ -2038,7 +2168,7 @@ describe('profile routes', () => {
     it('returns 400 for invalid maturityOverride', async () => {
       const response = await app.inject({
         method: 'PUT',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
         payload: { maturityOverride: 'adult' },
       })
@@ -2052,7 +2182,7 @@ describe('profile routes', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
         payload: { maturityOverride: 'sfw' },
       })
@@ -2079,7 +2209,7 @@ describe('profile routes', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
         payload: { maturityOverride: 'mature' },
       })
@@ -2094,7 +2224,7 @@ describe('profile routes', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
         payload: { mutedWords: ['spam'] },
       })
@@ -2111,7 +2241,7 @@ describe('profile routes', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
         payload: { blockedDids: ['did:plc:blocked1'] },
       })
@@ -2128,7 +2258,7 @@ describe('profile routes', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
         payload: { mutedDids: ['did:plc:muted1'] },
       })
@@ -2151,7 +2281,7 @@ describe('profile routes', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
         payload: { notificationPrefs: notifPrefs },
       })
@@ -2187,7 +2317,7 @@ describe('profile routes', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
         payload: {
           maturityOverride: 'mature',
@@ -2223,7 +2353,7 @@ describe('profile routes', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
         payload: {},
       })
@@ -2238,7 +2368,7 @@ describe('profile routes', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
         payload: { maturityOverride: null },
       })
@@ -2253,7 +2383,7 @@ describe('profile routes', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
         payload: { mutedWords: null },
       })
@@ -2276,7 +2406,7 @@ describe('profile routes', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
         payload: {},
       })
@@ -2300,7 +2430,7 @@ describe('profile routes', () => {
       // Passes Fastify JSON schema but fails Zod (.min(1) on string items)
       const response = await app.inject({
         method: 'PUT',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         headers: { authorization: 'Bearer test-token' },
         payload: { mutedWords: [''] },
       })
@@ -2430,10 +2560,10 @@ describe('profile routes', () => {
       expect(body.error).toBe('Authentication required')
     })
 
-    it('GET /api/users/me/communities/:communityId/preferences returns 401 when request.user is undefined', async () => {
+    it('GET /api/users/me/preferences/communities/:communityDid returns 401 when request.user is undefined', async () => {
       const response = await passthroughApp.inject({
         method: 'GET',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
       })
 
       expect(response.statusCode).toBe(401)
@@ -2441,10 +2571,10 @@ describe('profile routes', () => {
       expect(body.error).toBe('Authentication required')
     })
 
-    it('PUT /api/users/me/communities/:communityId/preferences returns 401 when request.user is undefined', async () => {
+    it('PUT /api/users/me/preferences/communities/:communityDid returns 401 when request.user is undefined', async () => {
       const response = await passthroughApp.inject({
         method: 'PUT',
-        url: `/api/users/me/communities/${COMMUNITY_DID}/preferences`,
+        url: `/api/users/me/preferences/communities/${COMMUNITY_DID}`,
         payload: { maturityOverride: 'sfw' },
       })
 
