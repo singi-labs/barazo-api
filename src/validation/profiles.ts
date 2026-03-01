@@ -50,3 +50,23 @@ export const ageDeclarationSchema = z.object({
 })
 
 export type AgeDeclarationInput = z.infer<typeof ageDeclarationSchema>
+
+// ---------------------------------------------------------------------------
+// Query schemas
+// ---------------------------------------------------------------------------
+
+/** Schema for GET /api/users/resolve-handles query string. */
+export const resolveHandlesSchema = z.object({
+  handles: z
+    .string()
+    .min(1)
+    .transform((val) =>
+      val
+        .split(',')
+        .map((h) => h.trim())
+        .filter(Boolean)
+    )
+    .pipe(z.array(z.string().min(1)).min(1).max(25)),
+})
+
+export type ResolveHandlesInput = z.infer<typeof resolveHandlesSchema>

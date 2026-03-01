@@ -1,10 +1,11 @@
-import { eq, and, sql } from 'drizzle-orm'
+import { eq, and, sql, inArray } from 'drizzle-orm'
 import type { FastifyPluginCallback } from 'fastify'
 import { notFound, badRequest, errorResponseSchema } from '../lib/api-errors.js'
 import {
   userPreferencesSchema,
   communityPreferencesSchema,
   ageDeclarationSchema,
+  resolveHandlesSchema,
 } from '../validation/profiles.js'
 import { users } from '../db/schema/users.js'
 import { communityProfiles } from '../db/schema/community-profiles.js'
@@ -22,6 +23,8 @@ import { sybilClusterMembers } from '../db/schema/sybil-cluster-members.js'
 import { sybilClusters } from '../db/schema/sybil-clusters.js'
 import { interactionGraph } from '../db/schema/interaction-graph.js'
 import { pdsTrustFactors } from '../db/schema/pds-trust-factors.js'
+import { resolveAuthors, type AuthorProfile } from '../lib/resolve-authors.js'
+import type { Database } from '../db/index.js'
 
 // ---------------------------------------------------------------------------
 // OpenAPI JSON Schema definitions
@@ -95,6 +98,16 @@ const reputationJsonSchema = {
   },
 }
 
+const authorProfileJsonSchema = {
+  type: 'object' as const,
+  properties: {
+    did: { type: 'string' as const },
+    handle: { type: 'string' as const },
+    displayName: { type: ['string', 'null'] as const },
+    avatarUrl: { type: ['string', 'null'] as const },
+  },
+}
+
 const preferencesJsonSchema = {
   type: 'object' as const,
   properties: {
@@ -106,6 +119,10 @@ const preferencesJsonSchema = {
     blockedDids: {
       type: 'array' as const,
       items: { type: 'string' as const },
+    },
+    blockedProfiles: {
+      type: 'array' as const,
+      items: authorProfileJsonSchema,
     },
     mutedDids: { type: 'array' as const, items: { type: 'string' as const } },
     crossPostBluesky: { type: 'boolean' as const },
@@ -175,6 +192,21 @@ function defaultCommunityPreferences(communityDid: string) {
   }
 }
 
+/** Resolve a list of DIDs to AuthorProfile[], preserving order. */
+async function resolveBlockedProfiles(dids: string[], db: Database): Promise<AuthorProfile[]> {
+  if (dids.length === 0) return []
+  const profileMap = await resolveAuthors(dids, null, db)
+  return dids.map(
+    (did) =>
+      profileMap.get(did) ?? {
+        did,
+        handle: did,
+        displayName: null,
+        avatarUrl: null,
+      }
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Profile routes plugin
 // ---------------------------------------------------------------------------
@@ -195,6 +227,106 @@ function defaultCommunityPreferences(communityDid: string) {
 export function profileRoutes(): FastifyPluginCallback {
   return (app, _opts, done) => {
     const { db, authMiddleware } = app
+
+    // -------------------------------------------------------------------
+    // GET /api/users/resolve-handles (auth required)
+    // -------------------------------------------------------------------
+
+    app.get(
+      '/api/users/resolve-handles',
+      {
+        preHandler: [authMiddleware.requireAuth],
+        schema: {
+          tags: ['Profiles'],
+          summary: 'Resolve handles to user profiles',
+          security: [{ bearerAuth: [] }],
+          querystring: {
+            type: 'object',
+            required: ['handles'],
+            properties: {
+              handles: { type: 'string' },
+            },
+          },
+          response: {
+            200: {
+              type: 'object' as const,
+              properties: {
+                users: {
+                  type: 'array' as const,
+                  items: authorProfileJsonSchema,
+                },
+              },
+            },
+            400: errorResponseSchema,
+            401: errorResponseSchema,
+          },
+        },
+      },
+      async (request, reply) => {
+        const requestUser = request.user
+        if (!requestUser) {
+          return reply.status(401).send({ error: 'Authentication required' })
+        }
+
+        const parsed = resolveHandlesSchema.safeParse(request.query)
+        if (!parsed.success) {
+          throw badRequest('handles query parameter is required (comma-separated, max 25)')
+        }
+
+        const handles = parsed.data.handles
+
+        // Look up handles in our users table
+        const userRows = await db
+          .select({
+            did: users.did,
+            handle: users.handle,
+            displayName: users.displayName,
+            avatarUrl: users.avatarUrl,
+          })
+          .from(users)
+          .where(inArray(users.handle, handles))
+
+        const foundMap = new Map<string, AuthorProfile>()
+        for (const row of userRows) {
+          foundMap.set(row.handle, {
+            did: row.did,
+            handle: row.handle,
+            displayName: row.displayName,
+            avatarUrl: row.avatarUrl,
+          })
+        }
+
+        // For handles not found locally, try AT Protocol identity resolution
+        // via the public Bluesky AppView XRPC endpoint
+        const missingHandles = handles.filter((h) => !foundMap.has(h))
+        for (const handle of missingHandles) {
+          try {
+            const url = `https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`
+            const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
+            if (res.ok) {
+              const data = (await res.json()) as { did?: string }
+              if (data.did) {
+                foundMap.set(handle, {
+                  did: data.did,
+                  handle,
+                  displayName: null,
+                  avatarUrl: null,
+                })
+              }
+            }
+          } catch {
+            // Handle not resolvable -- skip silently
+          }
+        }
+
+        // Return in request order
+        const resolved: AuthorProfile[] = handles
+          .map((h) => foundMap.get(h))
+          .filter((p): p is AuthorProfile => p !== undefined)
+
+        return reply.status(200).send({ users: resolved })
+      }
+    )
 
     // -------------------------------------------------------------------
     // GET /api/users/:handle (public, optionalAuth)
@@ -718,14 +850,17 @@ export function profileRoutes(): FastifyPluginCallback {
 
         const prefs = rows[0]
         if (!prefs) {
-          return reply.status(200).send(defaultPreferences())
+          return reply.status(200).send({ ...defaultPreferences(), blockedProfiles: [] })
         }
+
+        const blockedProfiles = await resolveBlockedProfiles(prefs.blockedDids, db)
 
         return reply.status(200).send({
           maturityLevel: prefs.maturityLevel,
           declaredAge: prefs.declaredAge ?? null,
           mutedWords: prefs.mutedWords,
           blockedDids: prefs.blockedDids,
+          blockedProfiles,
           mutedDids: prefs.mutedDids,
           crossPostBluesky: prefs.crossPostBluesky,
           crossPostFrontpage: prefs.crossPostFrontpage,
@@ -827,14 +962,17 @@ export function profileRoutes(): FastifyPluginCallback {
 
         const prefs = rows[0]
         if (!prefs) {
-          return reply.status(200).send(defaultPreferences())
+          return reply.status(200).send({ ...defaultPreferences(), blockedProfiles: [] })
         }
+
+        const updatedBlockedProfiles = await resolveBlockedProfiles(prefs.blockedDids, db)
 
         return reply.status(200).send({
           maturityLevel: prefs.maturityLevel,
           declaredAge: prefs.declaredAge ?? null,
           mutedWords: prefs.mutedWords,
           blockedDids: prefs.blockedDids,
+          blockedProfiles: updatedBlockedProfiles,
           mutedDids: prefs.mutedDids,
           crossPostBluesky: prefs.crossPostBluesky,
           crossPostFrontpage: prefs.crossPostFrontpage,
@@ -875,6 +1013,10 @@ export function profileRoutes(): FastifyPluginCallback {
                         type: 'array' as const,
                         items: { type: 'string' as const },
                       },
+                      blockedProfiles: {
+                        type: 'array' as const,
+                        items: authorProfileJsonSchema,
+                      },
                     },
                   },
                 },
@@ -905,13 +1047,32 @@ export function profileRoutes(): FastifyPluginCallback {
           )
           .where(eq(userCommunityPreferences.did, requestUser.did))
 
-        const communities = rows.map((row) => ({
-          communityDid: row.communityDid,
-          communityName: row.communityName ?? row.communityDid,
-          maturityLevel: row.maturityOverride ?? 'inherit',
-          mutedWords: row.mutedWords ?? [],
-          blockedDids: row.blockedDids ?? [],
-        }))
+        // Collect all blocked DIDs across communities for batch resolution
+        const allBlockedDids = rows.flatMap((row) => row.blockedDids ?? [])
+        const profileMap =
+          allBlockedDids.length > 0
+            ? await resolveAuthors([...new Set(allBlockedDids)], null, db)
+            : new Map<string, AuthorProfile>()
+
+        const communities = rows.map((row) => {
+          const dids = row.blockedDids ?? []
+          return {
+            communityDid: row.communityDid,
+            communityName: row.communityName ?? row.communityDid,
+            maturityLevel: row.maturityOverride ?? 'inherit',
+            mutedWords: row.mutedWords ?? [],
+            blockedDids: dids,
+            blockedProfiles: dids.map(
+              (did) =>
+                profileMap.get(did) ?? {
+                  did,
+                  handle: did,
+                  displayName: null,
+                  avatarUrl: null,
+                }
+            ),
+          }
+        })
 
         // Always include the current community so the settings page shows it
         // even if the user has never saved per-community preferences.
@@ -932,6 +1093,7 @@ export function profileRoutes(): FastifyPluginCallback {
             maturityLevel: 'inherit',
             mutedWords: [],
             blockedDids: [],
+            blockedProfiles: [],
           })
         }
 
