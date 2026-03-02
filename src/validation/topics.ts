@@ -75,6 +75,7 @@ export const topicQuerySchema = z.object({
     .default(25),
   category: z.string().optional(),
   tag: z.string().optional(),
+  sort: z.enum(['latest', 'popular']).optional().default('latest'),
 })
 
 export type TopicQueryInput = z.infer<typeof topicQuerySchema>

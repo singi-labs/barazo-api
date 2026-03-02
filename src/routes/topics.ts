@@ -509,6 +509,7 @@ export function topicRoutes(): FastifyPluginCallback {
               limit: { type: 'string' },
               category: { type: 'string' },
               tag: { type: 'string' },
+              sort: { type: 'string', enum: ['latest', 'popular'] },
             },
           },
           response: {
@@ -529,7 +530,7 @@ export function topicRoutes(): FastifyPluginCallback {
           throw badRequest('Invalid query parameters')
         }
 
-        const { cursor, limit, category, tag } = parsed.data
+        const { cursor, limit, category, tag, sort } = parsed.data
         const conditions = []
 
         // Maturity filtering: resolve user's max allowed maturity level
@@ -683,8 +684,8 @@ export function topicRoutes(): FastifyPluginCallback {
           conditions.push(sql`${topics.tags} @> ${JSON.stringify([tag])}::jsonb`)
         }
 
-        // Cursor-based pagination
-        if (cursor) {
+        // Cursor-based pagination (only for 'latest' sort; popular uses score ranking)
+        if (sort !== 'popular' && cursor) {
           const decoded = decodeCursor(cursor)
           if (decoded) {
             conditions.push(
@@ -697,11 +698,16 @@ export function topicRoutes(): FastifyPluginCallback {
 
         // Fetch limit + 1 to detect if there are more pages
         const fetchLimit = limit + 1
+
+        // Time-decay popularity score:
+        //   score = (reply_count + reaction_count * 0.3) / (age_in_hours + 2) ^ 1.2
+        const popularityScore = sql`(${topics.replyCount} + ${topics.reactionCount} * 0.3) / POWER(EXTRACT(EPOCH FROM (NOW() - ${topics.createdAt})) / 3600.0 + 2, 1.2)`
+
         const rows = await db
           .select()
           .from(topics)
           .where(whereClause)
-          .orderBy(desc(topics.lastActivityAt))
+          .orderBy(sort === 'popular' ? desc(popularityScore) : desc(topics.lastActivityAt))
           .limit(fetchLimit)
 
         const hasMore = rows.length > limit
@@ -747,7 +753,7 @@ export function topicRoutes(): FastifyPluginCallback {
         }))
 
         let nextCursor: string | null = null
-        if (hasMore) {
+        if (hasMore && sort !== 'popular') {
           const lastRow = resultRows[resultRows.length - 1]
           if (lastRow) {
             nextCursor = encodeCursor(lastRow.lastActivityAt.toISOString(), lastRow.uri)
