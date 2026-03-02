@@ -2090,7 +2090,7 @@ describe('reply routes', () => {
       resetAllDbMocks()
     })
 
-    it('returns empty content for author-deleted replies', async () => {
+    it('returns placeholder content for author-deleted replies', async () => {
       selectChain.where.mockResolvedValueOnce([sampleTopicRow()])
 
       const authorDeletedReply = sampleReplyRow({
@@ -2111,8 +2111,8 @@ describe('reply routes', () => {
         replies: Array<{ content: string; contentFormat: string | null }>
       }>()
       expect(body.replies).toHaveLength(1)
-      // Author-deleted replies return empty content
-      expect(body.replies[0]?.content).toBe('')
+      // Author-deleted replies return placeholder content
+      expect(body.replies[0]?.content).toBe('[Deleted by author]')
       expect(body.replies[0]?.contentFormat).toBeNull()
     })
 

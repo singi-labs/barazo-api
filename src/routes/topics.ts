@@ -100,13 +100,19 @@ const topicJsonSchema = {
  * @param categoryMaturityRating - The maturity rating inherited from the topic's category.
  */
 function serializeTopic(row: typeof topics.$inferSelect, categoryMaturityRating: string = 'safe') {
+  const isDeleted = row.isAuthorDeleted || row.isModDeleted
+  const placeholderTitle = row.isModDeleted
+    ? '[Removed by moderator]'
+    : row.isAuthorDeleted
+      ? '[Deleted by author]'
+      : row.title
   return {
     uri: row.uri,
     rkey: row.rkey,
     authorDid: row.authorDid,
-    title: row.isAuthorDeleted ? '[Deleted by author]' : row.title,
-    content: row.isAuthorDeleted ? '' : row.content,
-    contentFormat: row.isAuthorDeleted ? null : (row.contentFormat ?? null),
+    title: placeholderTitle,
+    content: isDeleted ? '' : row.content,
+    contentFormat: isDeleted ? null : (row.contentFormat ?? null),
     category: row.category,
     tags: row.tags ?? null,
     labels: row.labels ?? null,
@@ -115,6 +121,7 @@ function serializeTopic(row: typeof topics.$inferSelect, categoryMaturityRating:
     replyCount: row.replyCount,
     reactionCount: row.reactionCount,
     isAuthorDeleted: row.isAuthorDeleted,
+    isModDeleted: row.isModDeleted,
     categoryMaturityRating,
     lastActivityAt: row.lastActivityAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
