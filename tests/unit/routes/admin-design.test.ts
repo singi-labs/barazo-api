@@ -34,7 +34,6 @@ vi.mock('sharp', () => {
 import { adminDesignRoutes } from '../../../src/routes/admin-design.js'
 
 // Retrieve the mock instance exported from the vi.mock factory
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const { __mockInstance: mockSharpInstance } = await vi.importMock<{ __mockInstance: { resize: ReturnType<typeof vi.fn>; webp: ReturnType<typeof vi.fn>; toBuffer: ReturnType<typeof vi.fn> } }>('sharp')
 
 // ---------------------------------------------------------------------------
@@ -103,12 +102,13 @@ function createMockStorage(): StorageService {
 // ---------------------------------------------------------------------------
 
 function createMockRequireAdmin(user?: RequestUser) {
-  return async (request: { user?: RequestUser }, reply: { status: (code: number) => { send: (body: unknown) => void } }) => {
+  return (request: { user?: RequestUser }, reply: { status: (code: number) => { send: (body: unknown) => void } }, done: () => void) => {
     if (!user) {
       reply.status(401).send({ error: 'Authentication required' })
       return
     }
     request.user = user
+    done()
   }
 }
 
