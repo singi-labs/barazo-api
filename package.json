@@ -46,6 +46,7 @@
     "@noble/secp256k1": "3.0.0",
     "@scalar/fastify-api-reference": "1.46.0",
     "@sentry/node": "10.40.0",
+    "cborg": "4.5.8",
     "drizzle-orm": "0.45.1",
     "fastify": "5.7.4",
     "ioredis": "5.10.0",

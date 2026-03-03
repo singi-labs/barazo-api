@@ -3,6 +3,7 @@ import type { Database } from '../db/index.js'
 import type { Cache } from '../cache/index.js'
 import type { Logger } from '../lib/logger.js'
 import { ozoneLabels } from '../db/schema/ozone-labels.js'
+import { decodeEventStreamFrame } from '../lib/cbor-frames.js'
 
 const CACHE_TTL = 3600 // 1 hour
 const CACHE_PREFIX = 'ozone:labels:'
@@ -104,10 +105,21 @@ export class OzoneService {
 
   private async handleMessage(data: unknown): Promise<void> {
     try {
-      const text =
-        data instanceof Blob ? await data.text() : typeof data === 'string' ? data : String(data)
-      const event = JSON.parse(text) as LabelEvent
+      const bytes = await this.toBinaryData(data)
+      const { header, body } = decodeEventStreamFrame(bytes)
 
+      // Error frame (op: -1) -- log and skip
+      if (header.op === -1) {
+        const error = typeof body.error === 'string' ? body.error : 'unknown'
+        const message = typeof body.message === 'string' ? body.message : undefined
+        this.logger.warn({ error, message }, 'Ozone labeler error frame received')
+        return
+      }
+
+      // Only process #labels messages; skip other types silently
+      if (header.t !== '#labels') return
+
+      const event = body as unknown as LabelEvent
       if (!Array.isArray(event.labels)) return
 
       for (const label of event.labels) {
@@ -116,6 +128,20 @@ export class OzoneService {
     } catch (err) {
       this.logger.warn({ err }, 'Failed to process Ozone label event')
     }
+  }
+
+  /**
+   * Convert incoming WebSocket data to a Uint8Array for CBOR decoding.
+   *
+   * The AT Protocol event stream sends binary CBOR-encoded frames.
+   * Node.js native WebSocket may deliver data as Blob, ArrayBuffer,
+   * Buffer, or Uint8Array depending on the binaryType setting.
+   */
+  private async toBinaryData(data: unknown): Promise<Uint8Array> {
+    if (data instanceof Uint8Array) return data
+    if (data instanceof ArrayBuffer) return new Uint8Array(data)
+    if (data instanceof Blob) return new Uint8Array(await data.arrayBuffer())
+    throw new Error(`Unexpected WebSocket data type: ${typeof data}`)
   }
 
   private async processLabel(label: Label): Promise<void> {

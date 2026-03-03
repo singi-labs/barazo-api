@@ -1,5 +1,40 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import * as dagCbor from '@ipld/dag-cbor'
 import { OzoneService } from '../../../src/services/ozone.js'
+
+// ---------------------------------------------------------------------------
+// CBOR frame helper: encodes header + body as AT Protocol event stream frame
+// ---------------------------------------------------------------------------
+
+function encodeLabelFrame(body: Record<string, unknown>): Uint8Array {
+  const header = { op: 1, t: '#labels' }
+  const headerBytes = dagCbor.encode(header)
+  const bodyBytes = dagCbor.encode(body)
+  const frame = new Uint8Array(headerBytes.length + bodyBytes.length)
+  frame.set(headerBytes, 0)
+  frame.set(bodyBytes, headerBytes.length)
+  return frame
+}
+
+function encodeErrorFrame(body: Record<string, unknown>): Uint8Array {
+  const header = { op: -1 }
+  const headerBytes = dagCbor.encode(header)
+  const bodyBytes = dagCbor.encode(body)
+  const frame = new Uint8Array(headerBytes.length + bodyBytes.length)
+  frame.set(headerBytes, 0)
+  frame.set(bodyBytes, headerBytes.length)
+  return frame
+}
+
+function encodeInfoFrame(body: Record<string, unknown>): Uint8Array {
+  const header = { op: 1, t: '#info' }
+  const headerBytes = dagCbor.encode(header)
+  const bodyBytes = dagCbor.encode(body)
+  const frame = new Uint8Array(headerBytes.length + bodyBytes.length)
+  frame.set(headerBytes, 0)
+  frame.set(bodyBytes, headerBytes.length)
+  return frame
+}
 
 // ---------------------------------------------------------------------------
 // MockWebSocket that captures event listeners for triggering in tests
@@ -252,14 +287,14 @@ describe('OzoneService', () => {
       )
     })
 
-    it('message event routes to handleMessage', async () => {
+    it('message event routes to handleMessage with CBOR data', async () => {
       cache.get.mockResolvedValue(null)
       db._selectFromWhere.mockResolvedValue([])
 
       service.start()
       const ws = getLastWs()
 
-      const labelEvent = JSON.stringify({
+      const frame = encodeLabelFrame({
         seq: 1,
         labels: [
           {
@@ -272,7 +307,7 @@ describe('OzoneService', () => {
         ],
       })
 
-      ws.emit('message', { data: labelEvent })
+      ws.emit('message', { data: frame })
 
       // Let the async handleMessage settle
       await vi.advanceTimersByTimeAsync(0)
@@ -685,8 +720,8 @@ describe('OzoneService', () => {
       expect(db.insert).toHaveBeenCalled()
     })
 
-    it('handleMessage processes multiple labels in a single event', async () => {
-      const event = JSON.stringify({
+    it('handleMessage processes CBOR frame with multiple labels', async () => {
+      const frame = encodeLabelFrame({
         seq: 1,
         labels: [
           {
@@ -707,36 +742,38 @@ describe('OzoneService', () => {
       })
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      await (service as any).handleMessage(event)
+      await (service as any).handleMessage(frame)
 
       expect(db.insert).toHaveBeenCalledTimes(1)
       expect(db.delete).toHaveBeenCalledTimes(1)
       expect(cache.del).toHaveBeenCalledTimes(2)
     })
 
-    it('handleMessage skips events without labels array', async () => {
-      const event = JSON.stringify({ seq: 1 })
+    it('handleMessage skips CBOR events without labels array', async () => {
+      const frame = encodeLabelFrame({ seq: 1 })
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      await (service as any).handleMessage(event)
+      await (service as any).handleMessage(frame)
 
       expect(db.insert).not.toHaveBeenCalled()
       expect(db.delete).not.toHaveBeenCalled()
     })
 
-    it('handleMessage logs warning on invalid JSON', async () => {
+    it('handleMessage logs warning on invalid binary data', async () => {
+      const garbage = new Uint8Array([0xff, 0xfe, 0xfd, 0xfc])
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      await (service as any).handleMessage('not valid json{{{')
+      await (service as any).handleMessage(garbage)
 
       expect(logger.warn).toHaveBeenCalledWith(
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        expect.objectContaining({ err: expect.any(SyntaxError) }),
+        expect.objectContaining({ err: expect.any(Error) }),
         'Failed to process Ozone label event'
       )
     })
 
-    it('handleMessage handles Blob data from Node.js native WebSocket', async () => {
-      const labelEvent = {
+    it('handleMessage handles Blob containing CBOR data', async () => {
+      const frame = encodeLabelFrame({
         seq: 1,
         labels: [
           {
@@ -747,8 +784,8 @@ describe('OzoneService', () => {
             cts: '2026-01-15T12:00:00.000Z',
           },
         ],
-      }
-      const blob = new Blob([JSON.stringify(labelEvent)], { type: 'application/json' })
+      })
+      const blob = new Blob([frame])
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       await (service as any).handleMessage(blob)
@@ -757,8 +794,8 @@ describe('OzoneService', () => {
       expect(logger.warn).not.toHaveBeenCalled()
     })
 
-    it('handleMessage handles non-string data by converting to string', async () => {
-      const event = {
+    it('handleMessage handles ArrayBuffer data', async () => {
+      const frame = encodeLabelFrame({
         seq: 1,
         labels: [
           {
@@ -769,13 +806,54 @@ describe('OzoneService', () => {
             cts: '2026-01-15T12:00:00.000Z',
           },
         ],
-      }
+      })
 
-      // String(object) produces "[object Object]" which is invalid JSON
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      await (service as any).handleMessage(event)
+      await (service as any).handleMessage(frame.buffer)
 
-      expect(logger.warn).toHaveBeenCalled()
+      expect(db.insert).toHaveBeenCalled()
+      expect(logger.warn).not.toHaveBeenCalled()
+    })
+
+    it('handleMessage skips error frames gracefully', async () => {
+      const frame = encodeErrorFrame({
+        error: 'ConsumerTooSlow',
+        message: 'Consumer is too slow',
+      })
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      await (service as any).handleMessage(frame)
+
+      expect(db.insert).not.toHaveBeenCalled()
+      expect(db.delete).not.toHaveBeenCalled()
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ error: 'ConsumerTooSlow' }),
+        expect.stringContaining('Ozone labeler error frame')
+      )
+    })
+
+    it('handleMessage skips non-labels message types gracefully', async () => {
+      const frame = encodeInfoFrame({ name: 'OutdatedCursor' })
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      await (service as any).handleMessage(frame)
+
+      expect(db.insert).not.toHaveBeenCalled()
+      expect(db.delete).not.toHaveBeenCalled()
+      // Should not log a warning for known non-labels types
+      expect(logger.warn).not.toHaveBeenCalled()
+    })
+
+    it('handleMessage logs warning on string data (not valid CBOR frame)', async () => {
+      // AT Protocol firehose sends binary, not string -- string data is invalid
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      await (service as any).handleMessage('not valid data')
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        expect.objectContaining({ err: expect.any(Error) }),
+        'Failed to process Ozone label event'
+      )
     })
   })
 
