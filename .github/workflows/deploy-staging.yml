@@ -12,23 +12,18 @@ jobs:
     name: Trigger Staging Deploy
     runs-on: ubuntu-latest
     steps:
-      - name: Dispatch to barazo-deploy
+      # Sync the workspace lockfile first, then let it trigger the deploy.
+      # This avoids a race condition where the deploy starts with a stale
+      # lockfile before the sync has committed the updated one.
+      - name: Sync lockfile and deploy
         uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
         with:
           token: ${{ secrets.DEPLOY_PAT }}
-          repository: barazo-forum/barazo-deploy
-          event-type: deploy-staging
+          repository: barazo-forum/barazo-workspace
+          event-type: sync-lockfile
           client-payload: |
             {
               "trigger_repo": "barazo-api",
               "api_ref": "${{ github.sha }}",
               "web_ref": "main"
             }
-
-      - name: Sync workspace lockfile
-        continue-on-error: true
-        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
-        with:
-          token: ${{ secrets.DEPLOY_PAT }}
-          repository: barazo-forum/barazo-workspace
-          event-type: sync-lockfile
