@@ -1,0 +1,1 @@
+ALTER TABLE "community_settings" ADD COLUMN "favicon_url" text;

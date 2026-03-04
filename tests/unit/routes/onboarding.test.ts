@@ -17,6 +17,7 @@ const COMMUNITY_DID = 'did:plc:community123'
 
 const mockEnv = {
   COMMUNITY_DID,
+  HOSTING_MODE: 'selfhosted' as const,
   RATE_LIMIT_WRITE: 10,
   RATE_LIMIT_READ_ANON: 100,
   RATE_LIMIT_READ_AUTH: 300,
@@ -129,6 +130,7 @@ function sampleField(overrides?: Record<string, unknown>) {
     description: 'Tell us about yourself',
     isMandatory: true,
     sortOrder: 0,
+    source: 'admin',
     config: null,
     createdAt: new Date(TEST_NOW),
     updatedAt: new Date(TEST_NOW),
@@ -151,14 +153,17 @@ function sampleResponse(overrides?: Record<string, unknown>) {
 // Helper: build test app
 // ---------------------------------------------------------------------------
 
-async function buildTestApp(user?: RequestUser): Promise<FastifyInstance> {
+async function buildTestApp(
+  user?: RequestUser,
+  envOverrides?: Partial<Env>
+): Promise<FastifyInstance> {
   const app = Fastify({ logger: false })
 
   const authMiddleware = createMockAuthMiddleware(user)
   const requireAdmin = createMockRequireAdmin(user)
 
   app.decorate('db', mockDb as never)
-  app.decorate('env', mockEnv)
+  app.decorate('env', { ...mockEnv, ...envOverrides })
   app.decorate('authMiddleware', authMiddleware)
   app.decorate('requireAdmin', requireAdmin as never)
   app.decorate('firehose', {} as never)
@@ -204,7 +209,7 @@ describe('onboarding admin routes', () => {
       resetAllDbMocks()
     })
 
-    it('returns empty array when no fields configured', async () => {
+    it('returns { fields, hostingMode } response shape', async () => {
       queueSelectResults([])
 
       const response = await app.inject({
@@ -214,17 +219,20 @@ describe('onboarding admin routes', () => {
       })
 
       expect(response.statusCode).toBe(200)
-      expect(response.json()).toEqual([])
+      const body = response.json<{ fields: unknown[]; hostingMode: string }>()
+      expect(body.fields).toEqual([])
+      expect(body.hostingMode).toBe('selfhosted')
     })
 
-    it('returns fields sorted by sortOrder', async () => {
+    it('returns fields sorted by sortOrder with source property', async () => {
       const fields = [
-        sampleField({ id: 'field-001', sortOrder: 0 }),
+        sampleField({ id: 'field-001', sortOrder: 0, source: 'admin' }),
         sampleField({
           id: 'field-002',
           sortOrder: 1,
           label: 'Accept ToS',
           fieldType: 'tos_acceptance',
+          source: 'platform',
         }),
       ]
       queueSelectResults(fields)
@@ -236,10 +244,14 @@ describe('onboarding admin routes', () => {
       })
 
       expect(response.statusCode).toBe(200)
-      const body = response.json<{ id: string }[]>()
-      expect(body).toHaveLength(2)
-      expect(body[0]?.id).toBe('field-001')
-      expect(body[1]?.id).toBe('field-002')
+      const body = response.json<{
+        fields: { id: string; source: string }[]
+        hostingMode: string
+      }>()
+      expect(body.fields).toHaveLength(2)
+      expect(body.fields[0]?.id).toBe('field-001')
+      expect(body.fields[0]?.source).toBe('admin')
+      expect(body.fields[1]?.source).toBe('platform')
     })
 
     it('rejects unauthenticated request', async () => {
@@ -444,6 +456,66 @@ describe('onboarding admin routes', () => {
 
       expect(response.statusCode).toBe(400)
     })
+
+    it('returns 403 when editing platform field in SaaS mode', async () => {
+      const saasApp = await buildTestApp(adminUser(), { HOSTING_MODE: 'saas' as const })
+      // Queue select for the field lookup: platform source
+      queueSelectResults([sampleField({ id: 'field-001', source: 'platform' })])
+
+      const response = await saasApp.inject({
+        method: 'PUT',
+        url: '/api/admin/onboarding-fields/field-001',
+        headers: {
+          authorization: 'Bearer admin-token',
+          'content-type': 'application/json',
+        },
+        payload: { label: 'Modified label' },
+      })
+
+      expect(response.statusCode).toBe(403)
+      await saasApp.close()
+    })
+
+    it('allows editing platform field in selfhosted mode', async () => {
+      const updated = sampleField({ label: 'Updated label', source: 'platform' })
+      const updateChain = createChainableProxy([updated])
+      mockDb.update.mockReturnValueOnce(updateChain)
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/admin/onboarding-fields/field-001',
+        headers: {
+          authorization: 'Bearer admin-token',
+          'content-type': 'application/json',
+        },
+        payload: { label: 'Updated label' },
+      })
+
+      expect(response.statusCode).toBe(200)
+    })
+
+    it('allows editing admin field in SaaS mode', async () => {
+      const saasApp = await buildTestApp(adminUser(), { HOSTING_MODE: 'saas' as const })
+      // Queue select for the field lookup: admin source
+      queueSelectResults([sampleField({ id: 'field-001', source: 'admin' })])
+      // Queue update
+      const updated = sampleField({ label: 'Updated label', source: 'admin' })
+      const updateChain = createChainableProxy([updated])
+      mockDb.update.mockReturnValueOnce(updateChain)
+
+      const response = await saasApp.inject({
+        method: 'PUT',
+        url: '/api/admin/onboarding-fields/field-001',
+        headers: {
+          authorization: 'Bearer admin-token',
+          'content-type': 'application/json',
+        },
+        payload: { label: 'Updated label' },
+      })
+
+      expect(response.statusCode).toBe(200)
+      await saasApp.close()
+    })
   })
 
   // =========================================================================
@@ -494,6 +566,41 @@ describe('onboarding admin routes', () => {
       })
 
       expect(response.statusCode).toBe(404)
+    })
+
+    it('returns 403 when deleting platform field in SaaS mode', async () => {
+      const saasApp = await buildTestApp(adminUser(), { HOSTING_MODE: 'saas' as const })
+      // Queue select for the field lookup: platform source
+      queueSelectResults([sampleField({ id: 'field-001', source: 'platform' })])
+
+      const response = await saasApp.inject({
+        method: 'DELETE',
+        url: '/api/admin/onboarding-fields/field-001',
+        headers: { authorization: 'Bearer admin-token' },
+      })
+
+      expect(response.statusCode).toBe(403)
+      await saasApp.close()
+    })
+
+    it('allows deleting admin field in SaaS mode', async () => {
+      const saasApp = await buildTestApp(adminUser(), { HOSTING_MODE: 'saas' as const })
+      // Queue select for the field lookup: admin source
+      queueSelectResults([sampleField({ id: 'field-001', source: 'admin' })])
+      // Queue delete
+      const deleteChain = createChainableProxy([sampleField()])
+      mockDb.delete.mockReturnValueOnce(deleteChain)
+      const deleteResponsesChain = createChainableProxy([])
+      mockDb.delete.mockReturnValueOnce(deleteResponsesChain)
+
+      const response = await saasApp.inject({
+        method: 'DELETE',
+        url: '/api/admin/onboarding-fields/field-001',
+        headers: { authorization: 'Bearer admin-token' },
+      })
+
+      expect(response.statusCode).toBe(200)
+      await saasApp.close()
     })
   })
 
@@ -590,8 +697,7 @@ describe('onboarding user routes', () => {
     it('returns complete=true when no onboarding fields exist', async () => {
       queueSelectResults(
         [], // fields
-        [], // responses
-        [{ declaredAge: 18 }] // user preferences (has declared age)
+        [] // responses
       )
 
       const response = await app.inject({
@@ -610,8 +716,7 @@ describe('onboarding user routes', () => {
       const field = sampleField({ isMandatory: true })
       queueSelectResults(
         [field], // fields
-        [], // no responses
-        [{ declaredAge: 18 }] // user preferences (has declared age)
+        [] // no responses
       )
 
       const response = await app.inject({
@@ -630,8 +735,7 @@ describe('onboarding user routes', () => {
       const field = sampleField({ isMandatory: true })
       queueSelectResults(
         [field], // fields
-        [sampleResponse()], // responses
-        [{ declaredAge: 18 }] // user preferences (has declared age)
+        [sampleResponse()] // responses
       )
 
       const response = await app.inject({
@@ -646,6 +750,24 @@ describe('onboarding user routes', () => {
       expect(body.fields[0]?.completed).toBe(true)
     })
 
+    it('includes source in response fields', async () => {
+      const field = sampleField({ source: 'platform' })
+      queueSelectResults(
+        [field], // fields
+        [sampleResponse()] // responses
+      )
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/onboarding/status',
+        headers: { authorization: 'Bearer user-token' },
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = response.json<{ fields: { source: string }[] }>()
+      expect(body.fields[0]?.source).toBe('platform')
+    })
+
     it('ignores optional fields for completeness check', async () => {
       const mandatoryField = sampleField({ id: 'field-001', isMandatory: true })
       const optionalField = sampleField({
@@ -658,8 +780,7 @@ describe('onboarding user routes', () => {
       // Only mandatory field answered
       queueSelectResults(
         [mandatoryField, optionalField],
-        [sampleResponse({ fieldId: 'field-001' })],
-        [{ declaredAge: 18 }] // user preferences (has declared age)
+        [sampleResponse({ fieldId: 'field-001' })]
       )
 
       const response = await app.inject({

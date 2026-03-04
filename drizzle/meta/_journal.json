@@ -12,8 +12,22 @@
     {
       "idx": 1,
       "version": "7",
-      "when": 1772561125417,
-      "tag": "0001_modern_master_mold",
+      "when": 1772555130464,
+      "tag": "0001_add_favicon_url",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772610945005,
+      "tag": "0002_perfect_the_captain",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1772556676000,
+      "tag": "0003_backfill-platform-age-field",
       "breakpoints": true
     }
   ]

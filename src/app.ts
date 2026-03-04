@@ -43,6 +43,7 @@ import { globalFilterRoutes } from './routes/global-filters.js'
 import { communityProfileRoutes } from './routes/community-profiles.js'
 import { uploadRoutes } from './routes/uploads.js'
 import { adminSybilRoutes } from './routes/admin-sybil.js'
+import { adminDesignRoutes } from './routes/admin-design.js'
 import { createRequireAdmin } from './auth/require-admin.js'
 import { createRequireOperator } from './auth/require-operator.js'
 import { OzoneService } from './services/ozone.js'
@@ -336,6 +337,7 @@ export async function buildApp(env: Env) {
   await app.register(communityProfileRoutes())
   await app.register(uploadRoutes())
   await app.register(adminSybilRoutes())
+  await app.register(adminDesignRoutes())
 
   // OpenAPI spec endpoint (after routes so all schemas are registered)
   app.get('/api/openapi.json', { schema: { hide: true } }, async (_request, reply) => {

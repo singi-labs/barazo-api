@@ -41,6 +41,7 @@ async function pushSchema(client: ReturnType<typeof postgres>): Promise<void> {
       signing_key TEXT,
       rotation_key TEXT,
       community_logo_url TEXT,
+      favicon_url TEXT,
       primary_color TEXT,
       accent_color TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

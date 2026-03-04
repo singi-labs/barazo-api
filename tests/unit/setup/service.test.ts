@@ -20,14 +20,22 @@ function createMockDb() {
   })
 
   // Upsert chain: db.insert().values().onConflictDoUpdate().returning() -> Promise<rows[]>
+  // Also supports: db.insert().values().onConflictDoNothing() -> Promise<rows[]>
   const returningFn = vi.fn<() => Promise<unknown[]>>()
   const onConflictDoUpdateFn = vi.fn<() => { returning: typeof returningFn }>().mockReturnValue({
     returning: returningFn,
   })
+  const onConflictDoNothingFn = vi.fn<() => Promise<unknown[]>>().mockResolvedValue([])
   const valuesFn = vi
-    .fn<() => { onConflictDoUpdate: typeof onConflictDoUpdateFn }>()
+    .fn<
+      () => {
+        onConflictDoUpdate: typeof onConflictDoUpdateFn
+        onConflictDoNothing: typeof onConflictDoNothingFn
+      }
+    >()
     .mockReturnValue({
       onConflictDoUpdate: onConflictDoUpdateFn,
+      onConflictDoNothing: onConflictDoNothingFn,
     })
   const insertFn = vi.fn<() => { values: typeof valuesFn }>().mockReturnValue({
     values: valuesFn,
@@ -51,6 +59,7 @@ function createMockDb() {
       insertFn,
       valuesFn,
       onConflictDoUpdateFn,
+      onConflictDoNothingFn,
       returningFn,
       updateFn,
       setFn,
@@ -270,9 +279,7 @@ describe('SetupService', () => {
     })
 
     it('promotes initializing user to admin role in users table', async () => {
-      mocks.returningFn.mockResolvedValueOnce([
-        { communityName: 'Test Forum', communityDid: null },
-      ])
+      mocks.returningFn.mockResolvedValueOnce([{ communityName: 'Test Forum', communityDid: null }])
 
       const result = await service.initialize({
         did: TEST_DID,
@@ -294,6 +301,36 @@ describe('SetupService', () => {
 
       expect(result).toStrictEqual({ alreadyInitialized: true })
       expect(mocks.updateFn).not.toHaveBeenCalled()
+    })
+
+    it('seeds platform:age_confirmation onboarding field after initialization', async () => {
+      mocks.returningFn.mockResolvedValueOnce([
+        { communityName: DEFAULT_COMMUNITY_NAME, communityDid: TEST_COMMUNITY_DID },
+      ])
+
+      await service.initialize({ did: TEST_DID, communityDid: TEST_COMMUNITY_DID })
+
+      // The insert should be called twice: once for community settings, once for onboarding field
+      expect(mocks.insertFn).toHaveBeenCalledTimes(2)
+
+      // The second insert's values call should contain the platform age field
+      const secondValuesCall = mocks.valuesFn.mock.calls[1]?.[0] as Record<string, unknown>
+      expect(secondValuesCall).toBeDefined()
+      expect(secondValuesCall.id).toBe('platform:age_confirmation')
+      expect(secondValuesCall.fieldType).toBe('age_confirmation')
+      expect(secondValuesCall.source).toBe('platform')
+      expect(secondValuesCall.isMandatory).toBe(true)
+      expect(secondValuesCall.sortOrder).toBe(-1)
+      expect(mocks.onConflictDoNothingFn).toHaveBeenCalled()
+    })
+
+    it('does not seed platform fields when community is already initialized', async () => {
+      mocks.returningFn.mockResolvedValueOnce([])
+
+      await service.initialize({ did: TEST_DID })
+
+      // Only one insert call (the upsert attempt), no seeding
+      expect(mocks.insertFn).toHaveBeenCalledTimes(1)
     })
   })
 

@@ -1,0 +1,1 @@
+ALTER TABLE "community_onboarding_fields" ADD COLUMN "source" text DEFAULT 'admin' NOT NULL;

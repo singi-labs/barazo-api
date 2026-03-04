@@ -1,6 +1,6 @@
 {
-  "id": "162ade1e-0657-4007-8e90-3bef3a52306c",
-  "prevId": "021aacdb-67eb-4c57-93aa-7f7166a8e364",
+  "id": "5f8531c6-1108-4540-8776-0cb9de6ab736",
+  "prevId": "162ade1e-0657-4007-8e90-3bef3a52306c",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2270,6 +2270,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'admin'"
         },
         "config": {
           "name": "config",

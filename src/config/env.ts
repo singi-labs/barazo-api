@@ -37,6 +37,7 @@ const baseEnvSchema = z.object({
 
   // Community
   COMMUNITY_MODE: z.enum(['single', 'multi']).default('single'),
+  HOSTING_MODE: z.enum(['saas', 'selfhosted']).default('selfhosted'),
   COMMUNITY_DID: z.string().optional(),
   COMMUNITY_NAME: z.string().default('Barazo Community'),
 

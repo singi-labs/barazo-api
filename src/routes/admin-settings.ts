@@ -22,6 +22,7 @@ const settingsJsonSchema = {
     reactionSet: { type: 'array' as const, items: { type: 'string' as const } },
     communityDescription: { type: ['string', 'null'] as const },
     communityLogoUrl: { type: ['string', 'null'] as const },
+    faviconUrl: { type: ['string', 'null'] as const },
     primaryColor: { type: ['string', 'null'] as const },
     accentColor: { type: ['string', 'null'] as const },
     jurisdictionCountry: { type: ['string', 'null'] as const },
@@ -87,6 +88,7 @@ function serializeSettings(row: typeof communitySettings.$inferSelect) {
     reactionSet: row.reactionSet,
     communityDescription: row.communityDescription ?? null,
     communityLogoUrl: row.communityLogoUrl ?? null,
+    faviconUrl: row.faviconUrl ?? null,
     primaryColor: row.primaryColor ?? null,
     accentColor: row.accentColor ?? null,
     jurisdictionCountry: row.jurisdictionCountry ?? null,
@@ -133,6 +135,7 @@ export function adminSettingsRoutes(): FastifyPluginCallback {
                 maturityRating: { type: 'string' as const, enum: ['safe', 'mature', 'adult'] },
                 communityDescription: { type: ['string', 'null'] as const },
                 communityLogoUrl: { type: ['string', 'null'] as const },
+                faviconUrl: { type: ['string', 'null'] as const },
                 maxReplyDepth: { type: 'integer' as const },
               },
             },
@@ -158,6 +161,7 @@ export function adminSettingsRoutes(): FastifyPluginCallback {
           maturityRating: row.maturityRating,
           communityDescription: row.communityDescription ?? null,
           communityLogoUrl: row.communityLogoUrl ?? null,
+          faviconUrl: row.faviconUrl ?? null,
           maxReplyDepth: row.maxReplyDepth,
         })
       }
@@ -223,6 +227,7 @@ export function adminSettingsRoutes(): FastifyPluginCallback {
               },
               communityDescription: { type: ['string', 'null'], maxLength: 500 },
               communityLogoUrl: { type: ['string', 'null'], format: 'uri' },
+              faviconUrl: { type: ['string', 'null'], format: 'uri' },
               primaryColor: {
                 type: ['string', 'null'],
                 pattern: '^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$',
@@ -263,6 +268,7 @@ export function adminSettingsRoutes(): FastifyPluginCallback {
           updates.reactionSet === undefined &&
           updates.communityDescription === undefined &&
           updates.communityLogoUrl === undefined &&
+          updates.faviconUrl === undefined &&
           updates.primaryColor === undefined &&
           updates.accentColor === undefined &&
           updates.jurisdictionCountry === undefined &&
@@ -343,6 +349,9 @@ export function adminSettingsRoutes(): FastifyPluginCallback {
         }
         if (updates.communityLogoUrl !== undefined) {
           dbUpdates.communityLogoUrl = updates.communityLogoUrl
+        }
+        if (updates.faviconUrl !== undefined) {
+          dbUpdates.faviconUrl = updates.faviconUrl
         }
         if (updates.primaryColor !== undefined) {
           dbUpdates.primaryColor = updates.primaryColor

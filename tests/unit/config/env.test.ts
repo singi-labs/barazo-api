@@ -311,6 +311,42 @@ describe('AI_ENCRYPTION_KEY validation', () => {
   })
 })
 
+describe('HOSTING_MODE validation', () => {
+  const baseEnv = {
+    DATABASE_URL: 'postgresql://barazo:barazo_dev@localhost:5432/barazo',
+    VALKEY_URL: 'redis://localhost:6379',
+    TAP_URL: 'http://localhost:2480',
+    TAP_ADMIN_PASSWORD: 'tap_dev_secret',
+    OAUTH_CLIENT_ID:
+      'http://localhost?redirect_uri=http%3A%2F%2F127.0.0.1%3A3000%2Fapi%2Fauth%2Fcallback',
+    OAUTH_REDIRECT_URI: 'http://127.0.0.1:3000/api/auth/callback',
+    SESSION_SECRET: 'a-very-long-session-secret-that-is-at-least-32-characters',
+    AI_ENCRYPTION_KEY: 'a-very-long-encryption-key-that-is-at-least-32-characters',
+    COMMUNITY_DID: 'did:plc:testcommunity123',
+  }
+
+  it('defaults to selfhosted when HOSTING_MODE is omitted', () => {
+    const result = envSchema.safeParse(baseEnv)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.HOSTING_MODE).toBe('selfhosted')
+    }
+  })
+
+  it('accepts saas as HOSTING_MODE', () => {
+    const result = envSchema.safeParse({ ...baseEnv, HOSTING_MODE: 'saas' })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.HOSTING_MODE).toBe('saas')
+    }
+  })
+
+  it('rejects invalid HOSTING_MODE values', () => {
+    const result = envSchema.safeParse({ ...baseEnv, HOSTING_MODE: 'cloud' })
+    expect(result.success).toBe(false)
+  })
+})
+
 describe('parseEnv', () => {
   it('throws on invalid environment', () => {
     expect(() => parseEnv({})).toThrow()

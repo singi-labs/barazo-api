@@ -1,5 +1,6 @@
 import { eq, sql } from 'drizzle-orm'
 import { communitySettings } from '../db/schema/community-settings.js'
+import { communityOnboardingFields } from '../db/schema/onboarding-fields.js'
 import { users } from '../db/schema/users.js'
 import type { Database } from '../db/index.js'
 import { encrypt } from '../lib/encryption.js'
@@ -186,6 +187,24 @@ export function createSetupService(
       // Promote the initializing user to admin in the users table
       await db.update(users).set({ role: 'admin' }).where(eq(users.did, did))
       logger.info({ did }, 'User promoted to admin role')
+
+      // Seed platform onboarding fields
+      await db
+        .insert(communityOnboardingFields)
+        .values({
+          id: 'platform:age_confirmation',
+          communityDid,
+          fieldType: 'age_confirmation',
+          label: 'Age Declaration',
+          description:
+            'Please select your age bracket. This determines which content is available to you.',
+          isMandatory: true,
+          sortOrder: -1,
+          source: 'platform',
+          config: null,
+        })
+        .onConflictDoNothing()
+      logger.info({ communityDid }, 'Platform onboarding fields seeded')
 
       const finalName = row.communityName
       logger.info({ did, communityName: finalName }, 'Community initialized')
