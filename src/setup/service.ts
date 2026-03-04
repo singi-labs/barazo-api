@@ -250,6 +250,20 @@ export function createSetupService(
           createdAt: now,
           updatedAt: now,
         },
+        {
+          id: `page-${randomUUID()}`,
+          slug: 'accessibility',
+          title: 'Accessibility statement',
+          content: ACCESSIBILITY_CONTENT,
+          status: 'published' as const,
+          metaDescription:
+            'Barazo is committed to WCAG 2.2 Level AA accessibility. Learn about our testing, standards, and how to report issues.',
+          parentId: null,
+          sortOrder: 3,
+          communityDid,
+          createdAt: now,
+          updatedAt: now,
+        },
       ]
       await db.insert(pages).values(pageDefaults)
       logger.info({ communityDid, pageCount: pageDefaults.length }, 'Default pages seeded')
@@ -465,3 +479,45 @@ Because we only use a single essential cookie required for the service to functi
 Your light/dark mode preference is stored in localStorage (not a cookie). This is a client-side preference that is never sent to our servers.
 
 *This policy was last updated on February 2026.*`
+
+const ACCESSIBILITY_CONTENT = `## Our commitment
+
+Barazo is committed to ensuring digital accessibility for people with disabilities. We continually improve the user experience for everyone and apply the relevant accessibility standards.
+
+## Conformance status
+
+We aim to conform to the **Web Content Accessibility Guidelines (WCAG) 2.2 Level AA**. These guidelines explain how to make web content more accessible to people with a wide range of disabilities.
+
+## Testing methods
+
+We test accessibility through a combination of methods:
+
+- **Automated testing** using axe-core and ESLint accessibility rules in our continuous integration pipeline.
+- **Keyboard navigation** testing to ensure all interactive elements are reachable and operable without a mouse.
+- **Screen reader** testing with VoiceOver to verify content is properly announced and navigable.
+- **Lighthouse audits** targeting an accessibility score of 95 or higher on all page types.
+
+## Accessibility features
+
+- Semantic HTML with proper heading hierarchy and landmark regions.
+- Skip links for jumping to main content and the reply editor.
+- Keyboard-accessible controls with visible focus indicators.
+- ARIA attributes for dynamic content, dialogs, and tab patterns.
+- Color contrast meeting WCAG AA requirements in both light and dark themes.
+- Pagination as the default for content lists (no infinite scroll).
+- Respects reduced motion preferences via prefers-reduced-motion.
+
+## Known limitations
+
+While we strive for full accessibility, some areas may have limitations:
+
+- User-generated content may not always meet accessibility standards (e.g., images without alt text in posts).
+- Third-party embeds and plugins may have their own accessibility limitations.
+
+## Contact us
+
+If you encounter accessibility barriers on Barazo, please contact us. We take accessibility feedback seriously and will work to address issues promptly.
+
+You can report accessibility issues through our [GitHub issue tracker](https://github.com/barazo-forum/barazo-web/issues). Please include the page URL, a description of the issue, and the assistive technology you are using.
+
+*This statement was last updated on February 2026.*`
