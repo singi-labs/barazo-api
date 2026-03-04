@@ -29,6 +29,13 @@
       "when": 1772556676000,
       "tag": "0003_backfill-platform-age-field",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1772622885943,
+      "tag": "0004_threading-schema",
+      "breakpoints": true
     }
   ]
 }
