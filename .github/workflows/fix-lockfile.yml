@@ -4,9 +4,14 @@ name: Fix Lockfile
 # catalog: specifiers to concrete versions in the lockfile, causing
 # a mismatch that fails `pnpm install --frozen-lockfile` in CI.
 # This workflow regenerates the lockfile on Dependabot PRs.
+#
+# Uses pull_request_target so the workflow has access to repo secrets
+# (Dependabot PRs don't get secrets with plain pull_request).
+# Safe because: only runs for dependabot[bot], only executes pnpm install
+# (no PR-supplied scripts), and only commits pnpm-lock.yaml.
 
 on:
-  pull_request:
+  pull_request_target:
     paths:
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -25,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ secrets.DEPLOY_PAT }}
 
       - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
