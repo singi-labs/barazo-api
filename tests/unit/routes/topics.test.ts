@@ -949,6 +949,48 @@ describe('topic routes', () => {
       expect(body.title).toBe('Test Topic Title')
     })
 
+    it('enriches author profile in single topic response', async () => {
+      const row = sampleTopicRow()
+      // 1. find topic
+      selectChain.where.mockResolvedValueOnce([row])
+      // 2. category maturity rating
+      selectChain.where.mockResolvedValueOnce([{ maturityRating: 'safe' }])
+      // 3. user profile (maturity)
+      selectChain.where.mockResolvedValueOnce([{ declaredAge: null, maturityPref: 'safe' }])
+      // 4. age threshold
+      selectChain.where.mockResolvedValueOnce([{ ageThreshold: 16 }])
+      // 5. resolveAuthors: users table
+      selectChain.where.mockResolvedValueOnce([
+        {
+          did: TEST_DID,
+          handle: TEST_HANDLE,
+          displayName: 'Jay',
+          avatarUrl: 'https://cdn.example.com/jay.jpg',
+          bannerUrl: null,
+          bio: null,
+        },
+      ])
+      // 6. resolveAuthors: community profiles
+      selectChain.where.mockResolvedValueOnce([])
+
+      const encodedUri = encodeURIComponent(TEST_URI)
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/topics/${encodedUri}`,
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = response.json<{
+        author: { did: string; handle: string; displayName: string; avatarUrl: string }
+      }>()
+      expect(body.author).toEqual({
+        did: TEST_DID,
+        handle: TEST_HANDLE,
+        displayName: 'Jay',
+        avatarUrl: 'https://cdn.example.com/jay.jpg',
+      })
+    })
+
     it('returns 404 for non-existent topic', async () => {
       selectChain.where.mockResolvedValueOnce([])
 
@@ -1047,6 +1089,47 @@ describe('topic routes', () => {
       const body = response.json<{ uri: string; title: string; rkey: string }>()
       expect(body.uri).toBe(TEST_URI)
       expect(body.title).toBe('Test Topic Title')
+    })
+
+    it('enriches author profile in by-rkey response', async () => {
+      const row = sampleTopicRow()
+      // 1. find topic
+      selectChain.where.mockResolvedValueOnce([row])
+      // 2. category maturity rating
+      selectChain.where.mockResolvedValueOnce([{ maturityRating: 'safe' }])
+      // 3. user profile (maturity)
+      selectChain.where.mockResolvedValueOnce([{ declaredAge: null, maturityPref: 'safe' }])
+      // 4. age threshold
+      selectChain.where.mockResolvedValueOnce([{ ageThreshold: 16 }])
+      // 5. resolveAuthors: users table
+      selectChain.where.mockResolvedValueOnce([
+        {
+          did: TEST_DID,
+          handle: TEST_HANDLE,
+          displayName: 'Jay',
+          avatarUrl: 'https://cdn.example.com/jay.jpg',
+          bannerUrl: null,
+          bio: null,
+        },
+      ])
+      // 6. resolveAuthors: community profiles
+      selectChain.where.mockResolvedValueOnce([])
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/topics/by-rkey/abc123',
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = response.json<{
+        author: { did: string; handle: string; displayName: string; avatarUrl: string }
+      }>()
+      expect(body.author).toEqual({
+        did: TEST_DID,
+        handle: TEST_HANDLE,
+        displayName: 'Jay',
+        avatarUrl: 'https://cdn.example.com/jay.jpg',
+      })
     })
 
     it('returns 404 for non-existent rkey', async () => {

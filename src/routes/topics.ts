@@ -831,7 +831,18 @@ export function topicRoutes(): FastifyPluginCallback {
           throw forbidden('Content restricted by maturity settings')
         }
 
-        return reply.status(200).send(serializeTopic(row, categoryRating))
+        const serialized = serializeTopic(row, categoryRating)
+        const authorMap = await resolveAuthors([row.authorDid], communityDid, db)
+
+        return reply.status(200).send({
+          ...serialized,
+          author: authorMap.get(row.authorDid) ?? {
+            did: row.authorDid,
+            handle: row.authorDid,
+            displayName: null,
+            avatarUrl: null,
+          },
+        })
       }
     )
 
@@ -907,7 +918,18 @@ export function topicRoutes(): FastifyPluginCallback {
           throw forbidden('Content restricted by maturity settings')
         }
 
-        return reply.status(200).send(serializeTopic(row, categoryRating))
+        const serialized = serializeTopic(row, categoryRating)
+        const authorMap = await resolveAuthors([row.authorDid], communityDid, db)
+
+        return reply.status(200).send({
+          ...serialized,
+          author: authorMap.get(row.authorDid) ?? {
+            did: row.authorDid,
+            handle: row.authorDid,
+            displayName: null,
+            avatarUrl: null,
+          },
+        })
       }
     )
 
