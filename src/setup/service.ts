@@ -267,6 +267,20 @@ export function createSetupService(
           createdAt: now,
           updatedAt: now,
         },
+        {
+          id: `page-${randomUUID()}`,
+          slug: 'your-data',
+          title: 'Your data',
+          content: YOUR_DATA_CONTENT,
+          status: 'published' as const,
+          metaDescription:
+            'How your data works on this forum. Built on the AT Protocol, your posts are public by default and your identity is portable.',
+          parentId: null,
+          sortOrder: 4,
+          communityDid,
+          createdAt: now,
+          updatedAt: now,
+        },
       ]
       await db.insert(pages).values(pageDefaults)
       logger.info({ communityDid, pageCount: pageDefaults.length }, 'Default pages seeded')
@@ -774,6 +788,94 @@ Because we only use a single essential cookie required for the service to functi
 Your light/dark mode preference is stored in localStorage (not a cookie). This is a client-side preference that is never sent to our servers.
 
 *This policy was last updated on February 2026.*`
+
+const YOUR_DATA_CONTENT = `This page explains how data works on this forum. This forum is built on the AT Protocol -- the same open network that powers Bluesky. That architecture shapes how your data is stored, shared, and controlled.
+
+## How AT Protocol handles data
+
+AT Protocol is a **public network**. Every post, reply, and reaction is stored on the author's personal data server (PDS) and is readable by anyone. This is not a design choice made by this forum -- it is how the protocol works. The same is true for every application built on AT Protocol.
+
+What "public" means in practice:
+
+- **Anyone can read any PDS.** A developer, a researcher, or another application can query an AT Protocol account and see every record it contains.
+- **The firehose broadcasts everything.** AT Protocol uses a relay network (the "firehose") that streams every new record to anyone who subscribes. Other applications, indexers, and services can receive and store copies in real time.
+
+## Your data lives with you
+
+When you post on this forum, your content is written to your AT Protocol data server (your PDS) -- not to the forum's database. The forum indexes your posts so they appear in threads, but your PDS is the source of truth.
+
+This means:
+
+- Your posts belong to your AT Protocol account, not to any individual forum.
+- If a forum shuts down, your posts still exist on your PDS.
+- You can delete any post at any time, and the forum removes it from its index.
+- No forum admin can edit your words. They can moderate (hide or label content), but they cannot change what you wrote.
+
+Your identity and your content travel with you.
+
+## Your data is public
+
+This is the part most people do not expect, so we want to be clear about it.
+
+When you write a post, a reply, or a reaction on this forum, that record is stored on your PDS and is readable by anyone -- not just the forum you posted on.
+
+- **Anyone can see your posts across all forums.** A person or application can query your AT Protocol account and see every post you have written across every Barazo forum.
+- **Your community memberships are visible.** Every post carries the forum's identifier. If you post in a community, anyone who reads your PDS can see that you participated there.
+- **Your handle is public.** Your AT Protocol handle (e.g., \`jay.bsky.team\` or a custom domain) appears on every post. If your handle contains your real name or a domain you own, your real-world identity is linked to all your activity across the network. This is your choice when you set your handle -- but it is worth considering before you post.
+
+**If you mainly read and browse:** Reading and browsing a forum does not write anything to your PDS. Only posting, replying, and reacting create public records.
+
+## What deletion can and cannot do
+
+When you delete a post:
+
+1. The record is removed from your PDS.
+2. The forum removes it from its index immediately.
+3. AT Protocol sends a deletion event to the relay network.
+
+What nobody can guarantee:
+
+- Other services that subscribed to the firehose may have stored a copy before you deleted it.
+- Search engines may have cached the page.
+- Web archives may have preserved it.
+
+This forum honors every deletion immediately and propagates it across the AT Protocol network. Beyond that, we cannot recall what other parties have already received. This is the same for any content published on a public network.
+
+## You own what you write
+
+You hold the copyright to every post, reply, and piece of content you create on this forum. Barazo does not claim any license over your content. We do not use it for advertising, we do not sell it, and we do not package it as a dataset.
+
+**But copyright is not access control.** Because your posts are public AT Protocol records, anyone on the network can read, index, and store them. Others could collect your public posts into a dataset, use them for research, or feed them to an AI model. Copyright gives you legal standing to challenge misuse -- it does not prevent access to content you published on a public network.
+
+## What this forum collects
+
+This forum's database is an **index**, not a primary store. Here is what the software collects:
+
+**Indexed from your PDS (public data you authored):**
+- Your posts, replies, and reactions -- so they appear in forum threads
+- Your handle and display name -- so other members can see who wrote what
+
+**Generated by the software:**
+- A session cookie (one, HTTP-only, used for authentication -- no tracking cookies)
+- Moderation logs (if your content is reported or actioned)
+- Rate-limiting data (IP-based, not stored long-term)
+
+**Not collected:**
+- No email address
+- No password (AT Protocol OAuth handles authentication)
+- No behavioral analytics, no pageviews, no click tracking
+- No advertising profiles, no device fingerprinting
+- No third-party trackers, pixels, or analytics scripts
+
+For the full legal details, see [Privacy policy](/p/privacy-policy).
+
+## The trade-off, plainly stated
+
+AT Protocol gives you real data ownership: your identity is portable, your content lives on your server, and no platform can hold your data hostage. The trade-off is that "your server" is a public server. Your posts are as public as a personal website -- anyone can read them, and copies may spread beyond your original intent.
+
+We believe this trade-off is worth it. Platforms that promise privacy while locking your data in their database are offering the illusion of control. AT Protocol offers the real thing -- ownership -- with the honest caveat that ownership of a public record means the world can see it.
+
+If you would not put it on a public website, do not post it on a forum built on AT Protocol.`
 
 const ACCESSIBILITY_CONTENT = `## Our commitment
 

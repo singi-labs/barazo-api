@@ -491,7 +491,7 @@ describe('SetupService', () => {
       expect(mocks.insertFn).toHaveBeenCalledTimes(6)
     })
 
-    it('seeds exactly 4 default pages with correct slugs', async () => {
+    it('seeds exactly 5 default pages with correct slugs', async () => {
       mocks.returningFn.mockResolvedValueOnce([
         { communityName: DEFAULT_COMMUNITY_NAME, communityDid: TEST_COMMUNITY_DID },
       ])
@@ -518,12 +518,13 @@ describe('SetupService', () => {
         did: TEST_DID,
       })
 
-      expect(capturedPageValues).toHaveLength(4)
+      expect(capturedPageValues).toHaveLength(5)
       const slugs = capturedPageValues.map((v) => v.slug)
       expect(slugs).toContain('terms-of-service')
       expect(slugs).toContain('privacy-policy')
       expect(slugs).toContain('cookie-policy')
       expect(slugs).toContain('accessibility')
+      expect(slugs).toContain('your-data')
 
       for (const page of capturedPageValues) {
         expect(page.status).toBe('published')
@@ -562,7 +563,7 @@ describe('SetupService', () => {
       expect(seedLog).toBeDefined()
       if (seedLog) {
         expect(seedLog[0]).toHaveProperty('communityDid', TEST_COMMUNITY_DID)
-        expect(seedLog[0]).toHaveProperty('pageCount', 4)
+        expect(seedLog[0]).toHaveProperty('pageCount', 5)
       }
     })
   })
