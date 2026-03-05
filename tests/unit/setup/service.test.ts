@@ -310,8 +310,8 @@ describe('SetupService', () => {
 
       await service.initialize({ did: TEST_DID, communityDid: TEST_COMMUNITY_DID })
 
-      // The insert should be called three times: community settings, onboarding field, pages
-      expect(mocks.insertFn).toHaveBeenCalledTimes(3)
+      // insert is called 6 times: settings, onboarding, pages, categories, topics, replies
+      expect(mocks.insertFn).toHaveBeenCalledTimes(6)
 
       // The second insert's values call should contain the platform age field
       const secondValuesCall = mocks.valuesFn.mock.calls[1]?.[0] as Record<string, unknown>
@@ -487,8 +487,8 @@ describe('SetupService', () => {
         did: TEST_DID,
       })
 
-      // insert is called three times: community settings, onboarding field, pages
-      expect(mocks.insertFn).toHaveBeenCalledTimes(3)
+      // insert is called 6 times: settings, onboarding, pages, categories, topics, replies
+      expect(mocks.insertFn).toHaveBeenCalledTimes(6)
     })
 
     it('seeds exactly 4 default pages with correct slugs', async () => {
@@ -496,12 +496,13 @@ describe('SetupService', () => {
         { communityName: DEFAULT_COMMUNITY_NAME, communityDid: TEST_COMMUNITY_DID },
       ])
 
-      // Capture the values passed to the third insert call (pages)
+      // Capture the values passed to the pages insert call (pages have 'status' field)
       let capturedPageValues: Array<{ slug: string; status: string; communityDid: string }> = []
       mocks.valuesFn.mockImplementation((vals: unknown) => {
         if (
           Array.isArray(vals) &&
           vals.length > 0 &&
+          'status' in (vals[0] as Record<string, unknown>) &&
           'slug' in (vals[0] as Record<string, unknown>)
         ) {
           capturedPageValues = vals as typeof capturedPageValues
@@ -563,6 +564,165 @@ describe('SetupService', () => {
         expect(seedLog[0]).toHaveProperty('communityDid', TEST_COMMUNITY_DID)
         expect(seedLog[0]).toHaveProperty('pageCount', 4)
       }
+    })
+  })
+
+  // =========================================================================
+  // initialize (category and demo content seeding)
+  // =========================================================================
+
+  describe('initialize() category and demo content seeding', () => {
+    it('seeds categories with subcategories', async () => {
+      mocks.returningFn.mockResolvedValueOnce([
+        { communityName: DEFAULT_COMMUNITY_NAME, communityDid: TEST_COMMUNITY_DID },
+      ])
+
+      let capturedCategoryValues: Array<{
+        slug: string
+        parentId: string | null
+        communityDid: string
+      }> = []
+      mocks.valuesFn.mockImplementation((vals: unknown) => {
+        if (
+          Array.isArray(vals) &&
+          vals.length > 0 &&
+          'maturityRating' in (vals[0] as Record<string, unknown>) &&
+          'slug' in (vals[0] as Record<string, unknown>)
+        ) {
+          capturedCategoryValues = vals as typeof capturedCategoryValues
+        }
+        return {
+          onConflictDoUpdate: mocks.onConflictDoUpdateFn,
+          onConflictDoNothing: mocks.onConflictDoNothingFn,
+        }
+      })
+
+      await service.initialize({
+        communityDid: TEST_COMMUNITY_DID,
+        did: TEST_DID,
+      })
+
+      expect(capturedCategoryValues.length).toBeGreaterThan(4)
+
+      // Root categories have null parentId
+      const roots = capturedCategoryValues.filter((c) => c.parentId === null)
+      expect(roots.length).toBeGreaterThanOrEqual(4)
+
+      // Subcategories have non-null parentId
+      const subs = capturedCategoryValues.filter((c) => c.parentId !== null)
+      expect(subs.length).toBeGreaterThanOrEqual(3)
+
+      // All categories belong to the correct community
+      for (const cat of capturedCategoryValues) {
+        expect(cat.communityDid).toBe(TEST_COMMUNITY_DID)
+      }
+    })
+
+    it('seeds demo topics across categories including subcategories', async () => {
+      mocks.returningFn.mockResolvedValueOnce([
+        { communityName: DEFAULT_COMMUNITY_NAME, communityDid: TEST_COMMUNITY_DID },
+      ])
+
+      let capturedTopicValues: Array<{
+        category: string
+        title: string
+        authorDid: string
+      }> = []
+      mocks.valuesFn.mockImplementation((vals: unknown) => {
+        if (
+          Array.isArray(vals) &&
+          vals.length > 0 &&
+          'title' in (vals[0] as Record<string, unknown>) &&
+          'category' in (vals[0] as Record<string, unknown>)
+        ) {
+          capturedTopicValues = vals as typeof capturedTopicValues
+        }
+        return {
+          onConflictDoUpdate: mocks.onConflictDoUpdateFn,
+          onConflictDoNothing: mocks.onConflictDoNothingFn,
+        }
+      })
+
+      await service.initialize({
+        communityDid: TEST_COMMUNITY_DID,
+        did: TEST_DID,
+      })
+
+      expect(capturedTopicValues.length).toBeGreaterThanOrEqual(5)
+
+      // Topics should span both root and subcategories
+      const topicCategories = new Set(capturedTopicValues.map((t) => t.category))
+      expect(topicCategories.has('general')).toBe(true)
+      expect(topicCategories.has('frontend')).toBe(true)
+      expect(topicCategories.has('backend')).toBe(true)
+
+      // All topics use the admin DID as author
+      for (const topic of capturedTopicValues) {
+        expect(topic.authorDid).toBe(TEST_DID)
+      }
+    })
+
+    it('seeds demo replies for each topic', async () => {
+      mocks.returningFn.mockResolvedValueOnce([
+        { communityName: DEFAULT_COMMUNITY_NAME, communityDid: TEST_COMMUNITY_DID },
+      ])
+
+      let capturedReplyValues: Array<{
+        rootUri: string
+        authorDid: string
+        depth: number
+      }> = []
+      mocks.valuesFn.mockImplementation((vals: unknown) => {
+        if (
+          Array.isArray(vals) &&
+          vals.length > 0 &&
+          'rootUri' in (vals[0] as Record<string, unknown>) &&
+          'depth' in (vals[0] as Record<string, unknown>)
+        ) {
+          capturedReplyValues = vals as typeof capturedReplyValues
+        }
+        return {
+          onConflictDoUpdate: mocks.onConflictDoUpdateFn,
+          onConflictDoNothing: mocks.onConflictDoNothingFn,
+        }
+      })
+
+      await service.initialize({
+        communityDid: TEST_COMMUNITY_DID,
+        did: TEST_DID,
+      })
+
+      // One reply per topic
+      expect(capturedReplyValues.length).toBeGreaterThanOrEqual(5)
+
+      for (const reply of capturedReplyValues) {
+        expect(reply.authorDid).toBe(TEST_DID)
+        expect(reply.depth).toBe(1)
+      }
+    })
+
+    it('logs category and demo content seeding', async () => {
+      mocks.returningFn.mockResolvedValueOnce([
+        { communityName: DEFAULT_COMMUNITY_NAME, communityDid: TEST_COMMUNITY_DID },
+      ])
+
+      await service.initialize({
+        communityDid: TEST_COMMUNITY_DID,
+        did: TEST_DID,
+      })
+
+      const infoFn = mockLogger.info as ReturnType<typeof vi.fn>
+      const logCalls = infoFn.mock.calls as Array<[Record<string, unknown>, string]>
+
+      const catLog = logCalls.find(
+        ([_ctx, msg]) => typeof msg === 'string' && msg.includes('Default categories seeded')
+      )
+      expect(catLog).toBeDefined()
+
+      const contentLog = logCalls.find(
+        ([_ctx, msg]) => typeof msg === 'string' && msg.includes('Demo content seeded')
+      )
+      expect(contentLog).toBeDefined()
     })
   })
 

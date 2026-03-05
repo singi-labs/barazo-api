@@ -4,6 +4,9 @@ import { communitySettings } from '../db/schema/community-settings.js'
 import { communityOnboardingFields } from '../db/schema/onboarding-fields.js'
 import { users } from '../db/schema/users.js'
 import { pages } from '../db/schema/pages.js'
+import { categories } from '../db/schema/categories.js'
+import { topics } from '../db/schema/topics.js'
+import { replies } from '../db/schema/replies.js'
 import type { Database } from '../db/index.js'
 import { encrypt } from '../lib/encryption.js'
 import type { Logger } from '../lib/logger.js'
@@ -267,6 +270,298 @@ export function createSetupService(
       ]
       await db.insert(pages).values(pageDefaults)
       logger.info({ communityDid, pageCount: pageDefaults.length }, 'Default pages seeded')
+
+      // Seed default categories with subcategories
+      const catGeneral = `cat-${randomUUID()}`
+      const catDev = `cat-${randomUUID()}`
+      const catDevFrontend = `cat-${randomUUID()}`
+      const catDevBackend = `cat-${randomUUID()}`
+      const catDevDevops = `cat-${randomUUID()}`
+      const catCommunity = `cat-${randomUUID()}`
+      const catCommunityShowcase = `cat-${randomUUID()}`
+      const catCommunityEvents = `cat-${randomUUID()}`
+      const catFeedback = `cat-${randomUUID()}`
+      const catFeedbackBugs = `cat-${randomUUID()}`
+      const catFeedbackFeatures = `cat-${randomUUID()}`
+
+      const categoryDefaults = [
+        // Root categories
+        {
+          id: catGeneral,
+          slug: 'general',
+          name: 'General',
+          description: 'Open discussion on any topic.',
+          parentId: null,
+          sortOrder: 0,
+          communityDid,
+          maturityRating: 'safe' as const,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: catDev,
+          slug: 'development',
+          name: 'Development',
+          description: 'Technical discussions about software development.',
+          parentId: null,
+          sortOrder: 1,
+          communityDid,
+          maturityRating: 'safe' as const,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: catCommunity,
+          slug: 'community',
+          name: 'Community',
+          description: 'Community news, events, and member introductions.',
+          parentId: null,
+          sortOrder: 2,
+          communityDid,
+          maturityRating: 'safe' as const,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: catFeedback,
+          slug: 'feedback',
+          name: 'Feedback',
+          description: 'Help us improve — report bugs and suggest features.',
+          parentId: null,
+          sortOrder: 3,
+          communityDid,
+          maturityRating: 'safe' as const,
+          createdAt: now,
+          updatedAt: now,
+        },
+        // Subcategories: Development
+        {
+          id: catDevFrontend,
+          slug: 'frontend',
+          name: 'Frontend',
+          description: 'UI frameworks, CSS, accessibility, and browser APIs.',
+          parentId: catDev,
+          sortOrder: 0,
+          communityDid,
+          maturityRating: 'safe' as const,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: catDevBackend,
+          slug: 'backend',
+          name: 'Backend',
+          description: 'Servers, databases, APIs, and system design.',
+          parentId: catDev,
+          sortOrder: 1,
+          communityDid,
+          maturityRating: 'safe' as const,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: catDevDevops,
+          slug: 'devops',
+          name: 'DevOps',
+          description: 'CI/CD, containers, infrastructure, and deployment.',
+          parentId: catDev,
+          sortOrder: 2,
+          communityDid,
+          maturityRating: 'safe' as const,
+          createdAt: now,
+          updatedAt: now,
+        },
+        // Subcategories: Community
+        {
+          id: catCommunityShowcase,
+          slug: 'showcase',
+          name: 'Showcase',
+          description: 'Share what you have built with the community.',
+          parentId: catCommunity,
+          sortOrder: 0,
+          communityDid,
+          maturityRating: 'safe' as const,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: catCommunityEvents,
+          slug: 'events',
+          name: 'Events',
+          description: 'Meetups, conferences, and community happenings.',
+          parentId: catCommunity,
+          sortOrder: 1,
+          communityDid,
+          maturityRating: 'safe' as const,
+          createdAt: now,
+          updatedAt: now,
+        },
+        // Subcategories: Feedback
+        {
+          id: catFeedbackBugs,
+          slug: 'bugs',
+          name: 'Bug Reports',
+          description: 'Report issues so we can fix them.',
+          parentId: catFeedback,
+          sortOrder: 0,
+          communityDid,
+          maturityRating: 'safe' as const,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: catFeedbackFeatures,
+          slug: 'feature-requests',
+          name: 'Feature Requests',
+          description: 'Suggest new features or improvements.',
+          parentId: catFeedback,
+          sortOrder: 1,
+          communityDid,
+          maturityRating: 'safe' as const,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]
+
+      await db.insert(categories).values(categoryDefaults)
+      logger.info(
+        { communityDid, categoryCount: categoryDefaults.length },
+        'Default categories seeded'
+      )
+
+      // Seed demo topics and replies so the forum feels alive on first visit.
+      // Uses the admin's DID as author. URIs use a synthetic namespace to avoid
+      // collisions with real AT Protocol records from the firehose.
+      const demoTopics = [
+        {
+          category: 'general',
+          title: 'Welcome to the community!',
+          content:
+            'This is a brand new forum powered by the AT Protocol. Your identity is portable, your data is yours, and the community is decentralized.\n\nFeel free to introduce yourself and start a conversation.',
+          tags: ['welcome', 'introduction'],
+          replyContent:
+            'Excited to be here! The AT Protocol integration is a great touch — portable identity is the future.',
+        },
+        {
+          category: 'frontend',
+          title: 'What frontend framework are you using?',
+          content:
+            'Curious what everyone is building with these days. React? Vue? Svelte? Something else entirely?\n\nBonus points if you can explain *why* you chose it over the alternatives.',
+          tags: ['frontend', 'frameworks', 'discussion'],
+          replyContent:
+            'SolidJS for new projects, React for anything with a large ecosystem requirement. The signals model in Solid feels like the future of reactivity.',
+        },
+        {
+          category: 'backend',
+          title: 'Database migration strategies for zero-downtime deploys',
+          content:
+            'We have been running into issues with schema migrations that lock tables during deployment. Has anyone implemented a reliable expand-and-contract pattern?\n\nLooking for practical advice, not just theory.',
+          tags: ['database', 'migrations', 'deployment'],
+          replyContent:
+            'The expand-contract pattern works well. Key insight: never rename columns in a single migration. Add the new column, backfill, switch reads, then drop the old one.',
+        },
+        {
+          category: 'devops',
+          title: 'Docker Compose vs Kubernetes for small teams',
+          content:
+            'Our team of 4 is debating whether to move from Docker Compose to Kubernetes. Current setup handles ~10k requests/day on a single VPS.\n\nIs K8s overkill at this scale? What would make you switch?',
+          tags: ['docker', 'kubernetes', 'infrastructure'],
+          replyContent:
+            'At 10k req/day, Compose is perfectly fine. We made the switch at ~500k req/day when we needed auto-scaling and rolling deploys across multiple nodes.',
+        },
+        {
+          category: 'showcase',
+          title: 'Built a real-time markdown editor with AT Protocol sync',
+          content:
+            'Just finished a side project: a markdown editor that syncs documents to your PDS as AT Protocol records. Edits propagate in real-time via the firehose.\n\nSource is on GitHub — feedback welcome!',
+          tags: ['atproto', 'project', 'open-source'],
+          replyContent:
+            'This is impressive. How do you handle conflict resolution when two clients edit the same document simultaneously?',
+        },
+        {
+          category: 'bugs',
+          title: '[Example] How to write a good bug report',
+          content:
+            'A good bug report includes:\n\n1. **What you expected** to happen\n2. **What actually happened** (screenshots help!)\n3. **Steps to reproduce** the issue\n4. **Environment details** — browser, OS, screen size\n\nThe more detail you provide, the faster we can fix it.',
+          tags: ['meta', 'guide'],
+          replyContent:
+            'Adding browser console output (F12 → Console tab) is also incredibly helpful for tracking down frontend issues.',
+        },
+        {
+          category: 'feature-requests',
+          title: '[Example] Dark mode toggle in user preferences',
+          content:
+            'It would be great to have a dark mode option in user settings. Currently the theme follows the system preference, but I would like to override it per-forum.\n\n**Use case:** I prefer dark mode at night but light mode during the day, and my system setting does not auto-switch.',
+          tags: ['ux', 'accessibility', 'theming'],
+          replyContent:
+            'Strong support for this. A three-way toggle (Light / Dark / System) is the standard pattern. Could even store the preference in the PDS for cross-forum portability.',
+        },
+      ]
+
+      const topicValues = demoTopics.map((t, i) => {
+        const rkey = `seed${String(i + 1).padStart(3, '0')}`
+        return {
+          uri: `at://${did}/forum.barazo.topic.post/${rkey}`,
+          rkey,
+          authorDid: did,
+          title: t.title,
+          content: t.content,
+          contentFormat: null,
+          category: t.category,
+          tags: t.tags,
+          communityDid,
+          cid: `bafyreiseed${String(i + 1).padStart(3, '0')}`,
+          replyCount: 1,
+          reactionCount: 0,
+          voteCount: 0,
+          lastActivityAt: now,
+          createdAt: now,
+          indexedAt: now,
+          isLocked: false,
+          isPinned: i === 0,
+          isModDeleted: false,
+          isAuthorDeleted: false,
+          moderationStatus: 'approved' as const,
+          trustStatus: 'trusted' as const,
+        }
+      })
+
+      await db.insert(topics).values(topicValues)
+
+      const replyValues = demoTopics.map((t, i) => {
+        const topicRkey = `seed${String(i + 1).padStart(3, '0')}`
+        const topicUri = `at://${did}/forum.barazo.topic.post/${topicRkey}`
+        const topicCid = `bafyreiseed${String(i + 1).padStart(3, '0')}`
+        const replyRkey = `seedreply${String(i + 1).padStart(3, '0')}`
+        return {
+          uri: `at://${did}/forum.barazo.topic.reply/${replyRkey}`,
+          rkey: replyRkey,
+          authorDid: did,
+          content: t.replyContent,
+          contentFormat: null,
+          rootUri: topicUri,
+          rootCid: topicCid,
+          parentUri: topicUri,
+          parentCid: topicCid,
+          communityDid,
+          cid: `bafyreiseedreply${String(i + 1).padStart(3, '0')}`,
+          reactionCount: 0,
+          voteCount: 0,
+          depth: 1,
+          createdAt: now,
+          indexedAt: now,
+          isAuthorDeleted: false,
+          isModDeleted: false,
+          moderationStatus: 'approved' as const,
+          trustStatus: 'trusted' as const,
+        }
+      })
+
+      await db.insert(replies).values(replyValues)
+      logger.info(
+        { communityDid, topicCount: topicValues.length, replyCount: replyValues.length },
+        'Demo content seeded'
+      )
 
       const finalName = row.communityName
       logger.info({ did, communityName: finalName }, 'Community initialized')
