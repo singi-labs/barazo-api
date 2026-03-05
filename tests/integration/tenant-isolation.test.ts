@@ -90,6 +90,8 @@ async function pushSchema(client: ReturnType<typeof postgres>): Promise<void> {
       indexed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       is_locked BOOLEAN NOT NULL DEFAULT false,
       is_pinned BOOLEAN NOT NULL DEFAULT false,
+      pinned_at TIMESTAMPTZ,
+      pinned_scope TEXT,
       is_mod_deleted BOOLEAN NOT NULL DEFAULT false,
       is_author_deleted BOOLEAN NOT NULL DEFAULT false,
       moderation_status TEXT NOT NULL DEFAULT 'approved',
