@@ -173,6 +173,8 @@ function sampleTopicRow(overrides?: Record<string, unknown>) {
     indexedAt: new Date(TEST_NOW),
     isLocked: false,
     isPinned: false,
+    pinnedAt: null,
+    pinnedScope: null,
     isModDeleted: false,
     embedding: null,
     ...overrides,
@@ -505,6 +507,77 @@ describe('moderation routes', () => {
       })
 
       expect(response.statusCode).toBe(404)
+    })
+
+    it('should pin with category scope by default', async () => {
+      selectChain.where.mockResolvedValueOnce([sampleTopicRow({ isPinned: false })])
+
+      const encodedUri = encodeURIComponent(TEST_TOPIC_URI)
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/moderation/pin/${encodedUri}`,
+        headers: { authorization: 'Bearer test-token' },
+        payload: {},
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = response.json<{ uri: string; isPinned: boolean; pinnedScope: string | null }>()
+      expect(body.isPinned).toBe(true)
+      expect(body.pinnedScope).toBe('category')
+    })
+
+    it('should pin with forum scope', async () => {
+      // User lookup for admin check -- return admin role
+      selectChain.where.mockResolvedValueOnce([sampleTopicRow({ isPinned: false })])
+      selectChain.where.mockResolvedValueOnce([sampleUserRow({ did: TEST_DID, role: 'admin' })])
+
+      const encodedUri = encodeURIComponent(TEST_TOPIC_URI)
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/moderation/pin/${encodedUri}`,
+        headers: { authorization: 'Bearer test-token' },
+        payload: { scope: 'forum' },
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = response.json<{ uri: string; isPinned: boolean; pinnedScope: string | null }>()
+      expect(body.isPinned).toBe(true)
+      expect(body.pinnedScope).toBe('forum')
+    })
+
+    it('should clear pinnedScope and pinnedAt when unpinning', async () => {
+      selectChain.where.mockResolvedValueOnce([
+        sampleTopicRow({ isPinned: true, pinnedAt: new Date(TEST_NOW), pinnedScope: 'category' }),
+      ])
+
+      const encodedUri = encodeURIComponent(TEST_TOPIC_URI)
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/moderation/pin/${encodedUri}`,
+        headers: { authorization: 'Bearer test-token' },
+        payload: {},
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = response.json<{ uri: string; isPinned: boolean; pinnedScope: string | null }>()
+      expect(body.isPinned).toBe(false)
+      expect(body.pinnedScope).toBeNull()
+    })
+
+    it('should reject forum-wide pin from non-admin moderator', async () => {
+      selectChain.where.mockResolvedValueOnce([sampleTopicRow({ isPinned: false })])
+      // User lookup returns moderator role (not admin)
+      selectChain.where.mockResolvedValueOnce([sampleUserRow({ did: TEST_DID, role: 'moderator' })])
+
+      const encodedUri = encodeURIComponent(TEST_TOPIC_URI)
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/moderation/pin/${encodedUri}`,
+        headers: { authorization: 'Bearer test-token' },
+        payload: { scope: 'forum' },
+      })
+
+      expect(response.statusCode).toBe(403)
     })
   })
 

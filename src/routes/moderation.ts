@@ -260,6 +260,7 @@ export function moderationRoutes(): FastifyPluginCallback {
             type: 'object',
             properties: {
               reason: { type: 'string', maxLength: 500 },
+              scope: { type: 'string', enum: ['category', 'forum'] },
             },
           },
           response: {
@@ -268,6 +269,8 @@ export function moderationRoutes(): FastifyPluginCallback {
               properties: {
                 uri: { type: 'string' },
                 isPinned: { type: 'boolean' },
+                pinnedScope: { type: 'string', nullable: true },
+                pinnedAt: { type: 'string', nullable: true },
               },
             },
             401: errorResponseSchema,
@@ -286,6 +289,7 @@ export function moderationRoutes(): FastifyPluginCallback {
         const { id } = request.params as { id: string }
         const decodedUri = decodeURIComponent(id)
         const parsed = pinTopicSchema.safeParse(request.body)
+        const scope = parsed.success ? parsed.data.scope : 'category'
 
         const topicRows = await db
           .select()
@@ -300,8 +304,23 @@ export function moderationRoutes(): FastifyPluginCallback {
         const newPinned = !topic.isPinned
         const action = newPinned ? 'pin' : 'unpin'
 
+        // Forum-wide pins require admin role
+        if (newPinned && scope === 'forum') {
+          const userRows = await db.select().from(users).where(eq(users.did, user.did))
+          const userRecord = userRows[0]
+          if (!userRecord || userRecord.role !== 'admin') {
+            throw forbidden('Forum-wide pins require admin privileges')
+          }
+        }
+
+        const pinnedAt = newPinned ? new Date() : null
+        const pinnedScope = newPinned ? scope : null
+
         await db.transaction(async (tx) => {
-          await tx.update(topics).set({ isPinned: newPinned }).where(eq(topics.uri, decodedUri))
+          await tx
+            .update(topics)
+            .set({ isPinned: newPinned, pinnedAt, pinnedScope })
+            .where(eq(topics.uri, decodedUri))
 
           await tx.insert(moderationActions).values({
             action,
@@ -312,7 +331,10 @@ export function moderationRoutes(): FastifyPluginCallback {
           })
         })
 
-        app.log.info({ action, topicUri: decodedUri, moderatorDid: user.did }, `Topic ${action}ned`)
+        app.log.info(
+          { action, topicUri: decodedUri, moderatorDid: user.did, pinnedScope },
+          `Topic ${action}ned`
+        )
 
         // Fire-and-forget: notify topic author of pin/unpin
         notificationService
@@ -329,6 +351,8 @@ export function moderationRoutes(): FastifyPluginCallback {
         return reply.status(200).send({
           uri: decodedUri,
           isPinned: newPinned,
+          pinnedScope,
+          pinnedAt: pinnedAt?.toISOString() ?? null,
         })
       }
     )

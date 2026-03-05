@@ -10,6 +10,7 @@ export const lockTopicSchema = z.object({
 
 export const pinTopicSchema = z.object({
   reason: z.string().max(500).optional(),
+  scope: z.enum(['category', 'forum']).default('category'),
 })
 
 export const modDeleteSchema = z.object({
