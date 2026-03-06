@@ -48,6 +48,9 @@ importers:
       '@atproto/tap':
         specifier: 0.2.7
         version: 0.2.7
+      '@barazo/plugin-signatures':
+        specifier: link:../barazo-plugins/packages/plugin-signatures
+        version: link:../barazo-plugins/packages/plugin-signatures
       '@fastify/cookie':
         specifier: 11.0.2
         version: 11.0.2
