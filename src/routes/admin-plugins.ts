@@ -5,6 +5,7 @@ import { createRequire } from 'node:module'
 import { promisify } from 'node:util'
 import type { FastifyPluginCallback } from 'fastify'
 import { notFound, badRequest, conflict, errorResponseSchema } from '../lib/api-errors.js'
+import { getRegistryIndex, searchRegistryPlugins, getFeaturedPlugins } from '../lib/plugins/registry.js'
 import { updatePluginSettingsSchema, installPluginSchema } from '../validation/admin-plugins.js'
 import { pluginManifestSchema } from '../validation/plugin-manifest.js'
 import { plugins, pluginSettings } from '../db/schema/plugins.js'
@@ -605,6 +606,102 @@ export function adminPluginRoutes(): FastifyPluginCallback {
         )
 
         return reply.status(200).send(serializePlugin(newPlugin))
+      }
+    )
+
+    // -------------------------------------------------------------------
+    // Registry routes (public -- no auth required)
+    // -------------------------------------------------------------------
+
+    const registryPluginJsonSchema = {
+      type: 'object' as const,
+      properties: {
+        name: { type: 'string' as const },
+        displayName: { type: 'string' as const },
+        description: { type: 'string' as const },
+        version: { type: 'string' as const },
+        source: { type: 'string' as const },
+        category: { type: 'string' as const },
+        barazoVersion: { type: 'string' as const },
+        author: {
+          type: 'object' as const,
+          properties: {
+            name: { type: 'string' as const },
+            url: { type: 'string' as const },
+          },
+        },
+        license: { type: 'string' as const },
+        npmUrl: { type: 'string' as const },
+        repositoryUrl: { type: 'string' as const },
+        approved: { type: 'boolean' as const },
+        featured: { type: 'boolean' as const },
+        downloads: { type: 'number' as const },
+      },
+    }
+
+    const registryPluginListJsonSchema = {
+      type: 'object' as const,
+      properties: {
+        plugins: {
+          type: 'array' as const,
+          items: registryPluginJsonSchema,
+        },
+      },
+    }
+
+    // -------------------------------------------------------------------
+    // GET /api/plugins/registry/search (public)
+    // -------------------------------------------------------------------
+
+    app.get(
+      '/api/plugins/registry/search',
+      {
+        schema: {
+          tags: ['Plugins'],
+          summary: 'Search the plugin registry',
+          querystring: {
+            type: 'object' as const,
+            properties: {
+              q: { type: 'string' as const },
+              category: { type: 'string' as const },
+              source: { type: 'string' as const },
+            },
+          },
+          response: {
+            200: registryPluginListJsonSchema,
+          },
+        },
+      },
+      async (request) => {
+        const { q, category, source } = request.query as {
+          q?: string
+          category?: string
+          source?: string
+        }
+        const registryPlugins = await getRegistryIndex(app)
+        const results = searchRegistryPlugins(registryPlugins, { q, category, source })
+        return { plugins: results }
+      }
+    )
+
+    // -------------------------------------------------------------------
+    // GET /api/plugins/registry/featured (public)
+    // -------------------------------------------------------------------
+
+    app.get(
+      '/api/plugins/registry/featured',
+      {
+        schema: {
+          tags: ['Plugins'],
+          summary: 'Get featured plugins from the registry',
+          response: {
+            200: registryPluginListJsonSchema,
+          },
+        },
+      },
+      async () => {
+        const registryPlugins = await getRegistryIndex(app)
+        return { plugins: getFeaturedPlugins(registryPlugins) }
       }
     )
 
