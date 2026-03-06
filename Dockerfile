@@ -40,7 +40,7 @@ COPY barazo-lexicons/ ./barazo-lexicons/
 COPY barazo-api/ ./barazo-api/
 
 # Build lexicons first (workspace dependency), then API
-RUN pnpm --filter @barazo-forum/lexicons build && \
+RUN pnpm --filter @singi-labs/lexicons build && \
     pnpm --filter barazo-api build
 
 # Create standalone production deployment with resolved dependencies.

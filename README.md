@@ -1,9 +1,9 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/barazo-forum/.github/main/assets/logo-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/barazo-forum/.github/main/assets/logo-light.svg">
-  <img alt="Barazo Logo" src="https://raw.githubusercontent.com/barazo-forum/.github/main/assets/logo-dark.svg" width="120">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/singi-labs/.github/main/assets/logo-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/singi-labs/.github/main/assets/logo-light.svg">
+  <img alt="Barazo Logo" src="https://raw.githubusercontent.com/singi-labs/.github/main/assets/logo-dark.svg" width="120">
 </picture>
 
 # Barazo API
@@ -12,7 +12,7 @@
 
 [![Status: Alpha](https://img.shields.io/badge/status-alpha-orange)]()
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://opensource.org/licenses/AGPL-3.0)
-[![CI](https://github.com/barazo-forum/barazo-api/actions/workflows/ci.yml/badge.svg)](https://github.com/barazo-forum/barazo-api/actions/workflows/ci.yml)
+[![CI](https://github.com/singi-labs/barazo-api/actions/workflows/ci.yml/badge.svg)](https://github.com/singi-labs/barazo-api/actions/workflows/ci.yml)
 [![Node.js](https://img.shields.io/badge/node-24%20LTS-brightgreen)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.x-blue)](https://www.typescriptlang.org/)
 
@@ -190,7 +190,7 @@ OpenAPI spec: `GET /api/openapi.json`
 **Prerequisites:** Node.js 24 LTS, pnpm, Docker + Docker Compose, AT Protocol PDS access (Bluesky or self-hosted).
 
 ```bash
-git clone https://github.com/barazo-forum/barazo-api.git
+git clone https://github.com/singi-labs/barazo-api.git
 cd barazo-api
 pnpm install
 
@@ -217,7 +217,7 @@ pnpm lint           # ESLint
 pnpm typecheck      # TypeScript strict mode check
 ```
 
-See [CONTRIBUTING.md](https://github.com/barazo-forum/.github/blob/main/CONTRIBUTING.md) for branching strategy, commit format, and code review process.
+See [CONTRIBUTING.md](https://github.com/singi-labs/.github/blob/main/CONTRIBUTING.md) for branching strategy, commit format, and code review process.
 
 **Key standards:**
 
@@ -232,10 +232,10 @@ See [CONTRIBUTING.md](https://github.com/barazo-forum/.github/blob/main/CONTRIBU
 ## Deployment
 
 ```bash
-docker pull ghcr.io/barazo-forum/barazo-api:latest
+docker pull ghcr.io/singi-labs/barazo-api:latest
 ```
 
-See [barazo-deploy](https://github.com/barazo-forum/barazo-deploy) for full deployment templates.
+See [barazo-deploy](https://github.com/singi-labs/barazo-deploy) for full deployment templates.
 
 ---
 
@@ -243,18 +243,18 @@ See [barazo-deploy](https://github.com/barazo-forum/barazo-deploy) for full depl
 
 | Repository                                                         | Description                                   | License |
 | ------------------------------------------------------------------ | --------------------------------------------- | ------- |
-| [barazo-web](https://github.com/barazo-forum/barazo-web)           | Forum frontend (Next.js, Tailwind)            | MIT     |
-| [barazo-lexicons](https://github.com/barazo-forum/barazo-lexicons) | AT Protocol lexicon schemas + generated types | MIT     |
-| [barazo-deploy](https://github.com/barazo-forum/barazo-deploy)     | Docker Compose deployment templates           | MIT     |
-| [barazo-website](https://github.com/barazo-forum/barazo-website)   | Marketing + documentation site                | MIT     |
+| [barazo-web](https://github.com/singi-labs/barazo-web)           | Forum frontend (Next.js, Tailwind)            | MIT     |
+| [barazo-lexicons](https://github.com/singi-labs/barazo-lexicons) | AT Protocol lexicon schemas + generated types | MIT     |
+| [barazo-deploy](https://github.com/singi-labs/barazo-deploy)     | Docker Compose deployment templates           | MIT     |
+| [barazo-website](https://github.com/singi-labs/barazo-website)   | Marketing + documentation site                | MIT     |
 
 ---
 
 ## Community
 
 - **Website:** [barazo.forum](https://barazo.forum)
-- **Discussions:** [GitHub Discussions](https://github.com/orgs/barazo-forum/discussions)
-- **Issues:** [Report bugs](https://github.com/barazo-forum/barazo-api/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/orgs/singi-labs/discussions)
+- **Issues:** [Report bugs](https://github.com/singi-labs/barazo-api/issues)
 
 ---
 

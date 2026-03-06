@@ -23,10 +23,10 @@ jobs:
           PERSONAL_ACCESS_TOKEN: ${{ secrets.CLA_BOT_TOKEN }}
         with:
           path-to-signatures: 'signatures/cla.json'
-          path-to-document: 'https://github.com/barazo-forum/.github/blob/main/CLA.md'
+          path-to-document: 'https://github.com/singi-labs/.github/blob/main/CLA.md'
           branch: 'main'
           allowlist: 'gxjansen,dependabot[bot],github-actions[bot]'
-          remote-organization-name: 'barazo-forum'
+          remote-organization-name: 'singi-labs'
           remote-repository-name: '.github'
           lock-pullrequest-aftermerge: false
           use-dco-flag: false

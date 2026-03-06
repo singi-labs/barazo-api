@@ -7,7 +7,7 @@
   "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "https://github.com/barazo-forum/barazo-api.git"
+    "url": "https://github.com/singi-labs/barazo-api.git"
   },
   "engines": {
     "node": ">=24.0.0"
@@ -35,7 +35,7 @@
     "@atproto/api": "0.19.0",
     "@atproto/oauth-client-node": "0.3.17",
     "@atproto/tap": "0.2.7",
-    "@barazo-forum/lexicons": "link:../barazo-lexicons",
+    "@singi-labs/lexicons": "link:../barazo-lexicons",
     "@fastify/cookie": "11.0.2",
     "@fastify/cors": "11.2.0",
     "@fastify/helmet": "13.0.2",

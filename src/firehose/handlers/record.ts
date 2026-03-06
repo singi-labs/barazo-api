@@ -4,7 +4,7 @@ import type {
   TopicReplyInput,
   ReactionInput,
   VoteInput,
-} from '@barazo-forum/lexicons'
+} from '@singi-labs/lexicons'
 import { users } from '../../db/schema/users.js'
 import { replies } from '../../db/schema/replies.js'
 import { reactions } from '../../db/schema/reactions.js'

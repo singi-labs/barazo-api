@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: File issue in barazo-workspace
-    url: https://github.com/barazo-forum/barazo-workspace/issues/new/choose
+    url: https://github.com/singi-labs/barazo-workspace/issues/new/choose
     about: We track all issues centrally in barazo-workspace. Please file there for cross-repo features, general feedback, or if unsure where an issue belongs.

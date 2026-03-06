@@ -45,7 +45,7 @@ jobs:
           node-version: 24
       - name: Clone and build barazo-lexicons
         run: |
-          git clone --depth 1 https://github.com/barazo-forum/barazo-lexicons.git ../barazo-lexicons
+          git clone --depth 1 https://github.com/singi-labs/barazo-lexicons.git ../barazo-lexicons
           cd ../barazo-lexicons && pnpm install --ignore-scripts && pnpm run build
       - run: pnpm install
       - run: pnpm db:migrate

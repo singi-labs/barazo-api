@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import type { TopicPostInput } from '@barazo-forum/lexicons'
+import type { TopicPostInput } from '@singi-labs/lexicons'
 import { topics } from '../../db/schema/topics.js'
 import type { Database } from '../../db/index.js'
 import type { Logger } from '../../lib/logger.js'

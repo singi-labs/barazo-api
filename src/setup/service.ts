@@ -742,7 +742,7 @@ Under the GDPR, you have the right to:
 - Data portability (built into the AT Protocol).
 - Lodge a complaint with the Dutch Data Protection Authority (Autoriteit Persoonsgegevens).
 
-To exercise these rights, contact us through our [GitHub issue tracker](https://github.com/barazo-forum/barazo-workspace/issues) or via the contact details provided by your community administrator.
+To exercise these rights, contact us through our [GitHub issue tracker](https://github.com/singi-labs/barazo-workspace/issues) or via the contact details provided by your community administrator.
 
 ## Data breach notification
 
@@ -915,6 +915,6 @@ While we strive for full accessibility, some areas may have limitations:
 
 If you encounter accessibility barriers on Barazo, please contact us. We take accessibility feedback seriously and will work to address issues promptly.
 
-You can report accessibility issues through our [GitHub issue tracker](https://github.com/barazo-forum/barazo-web/issues). Please include the page URL, a description of the issue, and the assistive technology you are using.
+You can report accessibility issues through our [GitHub issue tracker](https://github.com/singi-labs/barazo-web/issues). Please include the page URL, a description of the issue, and the assistive technology you are using.
 
 *This statement was last updated on February 2026.*`

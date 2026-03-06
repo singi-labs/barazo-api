@@ -7,7 +7,7 @@ import {
   type TopicReplyInput,
   type ReactionInput,
   type VoteInput,
-} from '@barazo-forum/lexicons'
+} from '@singi-labs/lexicons'
 import type { SupportedCollection } from './types.js'
 import { isSupportedCollection } from './types.js'
 
