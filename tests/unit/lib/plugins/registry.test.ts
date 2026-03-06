@@ -209,6 +209,7 @@ describe('getRegistryIndex', () => {
     expect(result).toHaveLength(4)
     expect(result[0]?.name).toBe('@barazo/plugin-polls')
     // Should not have called fetch
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(app.cache.get).toHaveBeenCalledWith('plugin:registry:index')
   })
 
@@ -227,6 +228,7 @@ describe('getRegistryIndex', () => {
       'https://registry.barazo.forum/index.json',
       expect.objectContaining({ signal: expect.any(AbortSignal) as AbortSignal })
     )
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(app.cache.set).toHaveBeenCalledWith(
       'plugin:registry:index',
       JSON.stringify(registryData),
