@@ -67,6 +67,13 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy production deployment (node_modules + package.json)
 COPY --from=builder /app/deploy/ ./
 
+# Resolve workspace symlink: pnpm deploy creates a symlink for @singi-labs/lexicons
+# that points back to the build workspace (/workspace/barazo-lexicons), which doesn't
+# exist in the runner stage. Replace it with the actual built package.
+RUN rm -f node_modules/@singi-labs/lexicons && rm -f node_modules/@barazo/plugin-signatures
+COPY --from=builder /workspace/barazo-lexicons/ ./node_modules/@singi-labs/lexicons/
+COPY --from=builder /workspace/barazo-plugins/packages/plugin-signatures/ ./node_modules/@barazo/plugin-signatures/
+
 # Copy compiled output
 COPY --from=builder /workspace/barazo-api/dist/ ./dist/
 
