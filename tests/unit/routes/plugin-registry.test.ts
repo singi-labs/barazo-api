@@ -21,13 +21,37 @@ const { mockGetRegistryIndex } = vi.hoisted(() => ({
   mockGetRegistryIndex: vi.fn(),
 }))
 
-vi.mock('../../../src/lib/plugins/registry.js', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../../../src/lib/plugins/registry.js')>()
-  return {
-    ...original,
-    getRegistryIndex: mockGetRegistryIndex,
-  }
-})
+vi.mock('../../../src/lib/plugins/registry.js', () => ({
+  getRegistryIndex: mockGetRegistryIndex,
+  searchRegistryPlugins: vi.fn(
+    (plugins: unknown[], params: { q?: string; category?: string; source?: string }) => {
+      // Re-implement minimal search for tests
+      let results = plugins as Array<{
+        name: string
+        displayName: string
+        description: string
+        category: string
+        source: string
+        featured: boolean
+      }>
+      if (params.q) {
+        const q = params.q.toLowerCase()
+        results = results.filter(
+          (p) =>
+            p.name.includes(q) ||
+            p.displayName.toLowerCase().includes(q) ||
+            p.description.toLowerCase().includes(q)
+        )
+      }
+      if (params.category) results = results.filter((p) => p.category === params.category)
+      if (params.source) results = results.filter((p) => p.source === params.source)
+      return results
+    }
+  ),
+  getFeaturedPlugins: vi.fn((plugins: Array<{ featured: boolean }>) =>
+    plugins.filter((p) => p.featured)
+  ),
+}))
 
 // Import routes after mocks
 import { adminPluginRoutes } from '../../../src/routes/admin-plugins.js'
