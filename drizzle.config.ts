@@ -32,6 +32,7 @@ export default defineConfig({
     './src/db/schema/behavioral-flags.ts',
     './src/db/schema/pds-trust-factors.ts',
     './src/db/schema/pages.ts',
+    './src/db/schema/plugins.ts',
   ],
   out: './drizzle',
   dialect: 'postgresql',
