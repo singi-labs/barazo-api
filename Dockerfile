@@ -18,6 +18,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY barazo-lexicons/package.json ./barazo-lexicons/
 COPY barazo-api/package.json ./barazo-api/
 COPY barazo-web/package.json ./barazo-web/
+COPY barazo-plugins/packages/plugin-signatures/package.json ./barazo-plugins/packages/plugin-signatures/
 
 # Install all dependencies (including devDeps for tsc build)
 RUN pnpm install --frozen-lockfile
@@ -36,11 +37,15 @@ COPY --from=deps /workspace/ ./
 # Copy lexicons source (workspace dependency)
 COPY barazo-lexicons/ ./barazo-lexicons/
 
+# Copy plugin-signatures source (workspace dependency via link:)
+COPY barazo-plugins/packages/plugin-signatures/ ./barazo-plugins/packages/plugin-signatures/
+
 # Copy API source
 COPY barazo-api/ ./barazo-api/
 
-# Build lexicons first (workspace dependency), then API
+# Build workspace dependencies first, then API
 RUN pnpm --filter @singi-labs/lexicons build && \
+    pnpm --filter @barazo/plugin-signatures build && \
     pnpm --filter barazo-api build
 
 # Create standalone production deployment with resolved dependencies.
