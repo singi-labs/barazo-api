@@ -34,6 +34,8 @@ const pluginJsonSchema = {
     category: { type: 'string' as const },
     enabled: { type: 'boolean' as const },
     manifestJson: { type: 'object' as const },
+    dependencies: { type: 'array' as const, items: { type: 'string' as const } },
+    settingsSchema: { type: 'object' as const },
     settings: { type: 'object' as const },
     installedAt: { type: 'string' as const, format: 'date-time' as const },
     updatedAt: { type: 'string' as const, format: 'date-time' as const },
