@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { eq } from 'drizzle-orm'
+
 import { createDb } from '../../../src/db/index.js'
 import type { Database } from '../../../src/db/index.js'
 import { topics } from '../../../src/db/schema/topics.js'
