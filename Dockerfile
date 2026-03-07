@@ -38,6 +38,8 @@ COPY --from=deps /workspace/ ./
 COPY barazo-lexicons/ ./barazo-lexicons/
 
 # Copy plugin-signatures source (workspace dependency via link:)
+# Include tsconfig.base.json so the plugin's "extends": "../../tsconfig.base.json" resolves
+COPY barazo-plugins/tsconfig.base.json ./barazo-plugins/
 COPY barazo-plugins/packages/plugin-signatures/ ./barazo-plugins/packages/plugin-signatures/
 
 # Copy API source
