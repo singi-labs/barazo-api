@@ -66,7 +66,7 @@ describe('ReplyIndexer', () => {
       await indexer.handleCreate({
         ...baseParams,
         record: {
-          content: 'A reply',
+          content: { $type: 'forum.barazo.richtext#markdown' as const, value: 'A reply' },
           root: { uri: 'at://did:plc:test/forum.barazo.topic.post/topic1', cid: 'bafytopic' },
           parent: { uri: 'at://did:plc:test/forum.barazo.topic.post/topic1', cid: 'bafytopic' },
           community: 'did:plc:community',
@@ -107,7 +107,7 @@ describe('ReplyIndexer', () => {
       await indexer.handleCreate({
         ...baseParams,
         record: {
-          content: 'Direct reply',
+          content: { $type: 'forum.barazo.richtext#markdown' as const, value: 'Direct reply' },
           root: { uri: topicUri, cid: 'bafytopic' },
           parent: { uri: topicUri, cid: 'bafytopic' },
           community: 'did:plc:community',
@@ -148,7 +148,7 @@ describe('ReplyIndexer', () => {
       await indexer.handleCreate({
         ...baseParams,
         record: {
-          content: 'Nested reply',
+          content: { $type: 'forum.barazo.richtext#markdown' as const, value: 'Nested reply' },
           root: { uri: 'at://did:plc:test/forum.barazo.topic.post/topic1', cid: 'bafytopic' },
           parent: { uri: 'at://did:plc:test/forum.barazo.topic.reply/reply2', cid: 'bafyreply2' },
           community: 'did:plc:community',
@@ -189,7 +189,10 @@ describe('ReplyIndexer', () => {
       await indexer.handleCreate({
         ...baseParams,
         record: {
-          content: 'Orphaned nested reply',
+          content: {
+            $type: 'forum.barazo.richtext#markdown' as const,
+            value: 'Orphaned nested reply',
+          },
           root: { uri: 'at://did:plc:test/forum.barazo.topic.post/topic1', cid: 'bafytopic' },
           parent: {
             uri: 'at://did:plc:test/forum.barazo.topic.reply/missing',
@@ -214,7 +217,7 @@ describe('ReplyIndexer', () => {
       await indexer.handleUpdate({
         ...baseParams,
         record: {
-          content: 'Updated reply',
+          content: { $type: 'forum.barazo.richtext#markdown' as const, value: 'Updated reply' },
           root: { uri: 'at://did:plc:test/forum.barazo.topic.post/topic1', cid: 'bafytopic' },
           parent: { uri: 'at://did:plc:test/forum.barazo.topic.post/topic1', cid: 'bafytopic' },
           community: 'did:plc:community',
@@ -251,7 +254,10 @@ describe('ReplyIndexer', () => {
       await indexer.handleCreate({
         ...baseParams,
         record: {
-          content: '<p>Reply</p><script>evil()</script>',
+          content: {
+            $type: 'forum.barazo.richtext#markdown' as const,
+            value: '<p>Reply</p><script>evil()</script>',
+          },
           root: { uri: 'at://did:plc:test/forum.barazo.topic.post/topic1', cid: 'bafytopic' },
           parent: { uri: 'at://did:plc:test/forum.barazo.topic.post/topic1', cid: 'bafytopic' },
           community: 'did:plc:community',
@@ -278,7 +284,10 @@ describe('ReplyIndexer', () => {
       await indexer.handleUpdate({
         ...baseParams,
         record: {
-          content: '<p>Safe</p><iframe src="evil.com"></iframe>',
+          content: {
+            $type: 'forum.barazo.richtext#markdown' as const,
+            value: '<p>Safe</p><iframe src="evil.com"></iframe>',
+          },
           root: { uri: 'at://did:plc:test/forum.barazo.topic.post/topic1', cid: 'bafytopic' },
           parent: { uri: 'at://did:plc:test/forum.barazo.topic.post/topic1', cid: 'bafytopic' },
           community: 'did:plc:community',
@@ -315,7 +324,10 @@ describe('ReplyIndexer', () => {
       await indexer.handleCreate({
         ...baseParams,
         record: {
-          content: '<p>\u202AHello\u202E World\u200F</p>',
+          content: {
+            $type: 'forum.barazo.richtext#markdown' as const,
+            value: '<p>\u202AHello\u202E World\u200F</p>',
+          },
           root: { uri: 'at://did:plc:test/forum.barazo.topic.post/topic1', cid: 'bafytopic' },
           parent: { uri: 'at://did:plc:test/forum.barazo.topic.post/topic1', cid: 'bafytopic' },
           community: 'did:plc:community',

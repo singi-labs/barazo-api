@@ -5,12 +5,11 @@ describe('validateRecord', () => {
   describe('topic post validation', () => {
     const validTopic = {
       title: 'Test Topic',
-      content: 'Some content here',
-      contentFormat: 'markdown',
+      content: { $type: 'forum.barazo.richtext#markdown', value: 'Some content here' },
       community: 'did:plc:abc123',
       category: 'general',
       tags: ['test'],
-      createdAt: '2026-01-01T00:00:00.000Z',
+      publishedAt: '2026-01-01T00:00:00.000Z',
     }
 
     it('accepts a valid topic post', () => {
@@ -27,7 +26,7 @@ describe('validateRecord', () => {
     it('rejects a topic post with empty content', () => {
       const result = validateRecord('forum.barazo.topic.post', {
         ...validTopic,
-        content: '',
+        content: { $type: 'forum.barazo.richtext#markdown', value: '' },
       })
       expect(result.success).toBe(false)
     })
@@ -35,7 +34,7 @@ describe('validateRecord', () => {
 
   describe('topic reply validation', () => {
     const validReply = {
-      content: 'A reply',
+      content: { $type: 'forum.barazo.richtext#markdown', value: 'A reply' },
       root: { uri: 'at://did:plc:abc/forum.barazo.topic.post/123', cid: 'bafyabc' },
       parent: { uri: 'at://did:plc:abc/forum.barazo.topic.post/123', cid: 'bafyabc' },
       community: 'did:plc:abc123',
@@ -120,10 +119,10 @@ describe('validateRecord', () => {
     it('rejects records exceeding 64KB', () => {
       const oversized = {
         title: 'Test',
-        content: 'x'.repeat(65_537),
+        content: { $type: 'forum.barazo.richtext#markdown', value: 'x'.repeat(65_537) },
         community: 'did:plc:abc123',
         category: 'general',
-        createdAt: '2026-01-01T00:00:00.000Z',
+        publishedAt: '2026-01-01T00:00:00.000Z',
       }
       const result = validateRecord('forum.barazo.topic.post', oversized)
       expect(result.success).toBe(false)

@@ -47,12 +47,11 @@ describe('TopicIndexer', () => {
         ...baseParams,
         record: {
           title: 'Test Topic',
-          content: 'Content here',
-          contentFormat: 'markdown',
+          content: { $type: 'forum.barazo.richtext#markdown' as const, value: 'Content here' },
           community: 'did:plc:community',
           category: 'general',
           tags: ['test'],
-          createdAt: '2026-01-01T00:00:00.000Z',
+          publishedAt: '2026-01-01T00:00:00.000Z',
         },
       })
 
@@ -68,11 +67,11 @@ describe('TopicIndexer', () => {
         ...baseParams,
         record: {
           title: 'Test',
-          content: 'Content',
+          content: { $type: 'forum.barazo.richtext#markdown' as const, value: 'Content' },
           community: 'did:plc:community',
           category: 'general',
           labels: { values: [{ val: 'nsfw' }] },
-          createdAt: '2026-01-01T00:00:00.000Z',
+          publishedAt: '2026-01-01T00:00:00.000Z',
         },
       })
 
@@ -90,11 +89,11 @@ describe('TopicIndexer', () => {
         ...baseParams,
         record: {
           title: 'Updated Title',
-          content: 'Updated content',
+          content: { $type: 'forum.barazo.richtext#markdown' as const, value: 'Updated content' },
           community: 'did:plc:community',
           category: 'updated',
           tags: ['updated'],
-          createdAt: '2026-01-01T00:00:00.000Z',
+          publishedAt: '2026-01-01T00:00:00.000Z',
         },
       })
 
@@ -118,10 +117,13 @@ describe('TopicIndexer', () => {
         ...baseParams,
         record: {
           title: '<b>Bold</b> Title<script>alert("xss")</script>',
-          content: '<p>Good</p><script>alert("xss")</script>',
+          content: {
+            $type: 'forum.barazo.richtext#markdown' as const,
+            value: '<p>Good</p><script>alert("xss")</script>',
+          },
           community: 'did:plc:community',
           category: 'general',
-          createdAt: '2026-01-01T00:00:00.000Z',
+          publishedAt: '2026-01-01T00:00:00.000Z',
         },
       })
 
@@ -150,10 +152,13 @@ describe('TopicIndexer', () => {
         ...baseParams,
         record: {
           title: 'Clean <img src=x onerror=alert(1)>',
-          content: '<p>Safe</p><iframe src="evil.com"></iframe>',
+          content: {
+            $type: 'forum.barazo.richtext#markdown' as const,
+            value: '<p>Safe</p><iframe src="evil.com"></iframe>',
+          },
           community: 'did:plc:community',
           category: 'general',
-          createdAt: '2026-01-01T00:00:00.000Z',
+          publishedAt: '2026-01-01T00:00:00.000Z',
         },
       })
 
@@ -179,10 +184,13 @@ describe('TopicIndexer', () => {
         ...baseParams,
         record: {
           title: '\u202AHello\u202E World',
-          content: '<p>\u2066Content\u2069</p>',
+          content: {
+            $type: 'forum.barazo.richtext#markdown' as const,
+            value: '<p>\u2066Content\u2069</p>',
+          },
           community: 'did:plc:community',
           category: 'general',
-          createdAt: '2026-01-01T00:00:00.000Z',
+          publishedAt: '2026-01-01T00:00:00.000Z',
         },
       })
 

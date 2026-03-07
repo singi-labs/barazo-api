@@ -31,7 +31,7 @@ export class TopicIndexer {
 
   async handleCreate(params: CreateParams): Promise<void> {
     const { uri, rkey, did, cid, record, live, trustStatus } = params
-    const clientCreatedAt = new Date(record.createdAt)
+    const clientCreatedAt = new Date(record.publishedAt)
     const createdAt = live ? clampCreatedAt(clientCreatedAt) : clientCreatedAt
 
     await this.db
@@ -41,8 +41,8 @@ export class TopicIndexer {
         rkey,
         authorDid: did,
         title: sanitizeText(record.title),
-        content: sanitizeHtml(record.content),
-        contentFormat: record.contentFormat ?? null,
+        content: sanitizeHtml(record.content.value),
+        contentFormat: 'markdown',
         category: record.category,
         tags: record.tags ?? null,
         communityDid: record.community,
@@ -56,8 +56,8 @@ export class TopicIndexer {
         target: topics.uri,
         set: {
           title: sanitizeText(record.title),
-          content: sanitizeHtml(record.content),
-          contentFormat: record.contentFormat ?? null,
+          content: sanitizeHtml(record.content.value),
+          contentFormat: 'markdown',
           category: record.category,
           tags: record.tags ?? null,
           cid,
@@ -76,8 +76,8 @@ export class TopicIndexer {
       .update(topics)
       .set({
         title: sanitizeText(record.title),
-        content: sanitizeHtml(record.content),
-        contentFormat: record.contentFormat ?? null,
+        content: sanitizeHtml(record.content.value),
+        contentFormat: 'markdown',
         category: record.category,
         tags: record.tags ?? null,
         cid,

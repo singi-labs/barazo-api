@@ -65,8 +65,8 @@ export class ReplyIndexer {
           uri,
           rkey,
           authorDid: did,
-          content: sanitizeHtml(record.content),
-          contentFormat: record.contentFormat ?? null,
+          content: sanitizeHtml(record.content.value),
+          contentFormat: 'markdown',
           rootUri: root.uri,
           rootCid: root.cid,
           parentUri: parent.uri,
@@ -99,8 +99,8 @@ export class ReplyIndexer {
     await this.db
       .update(replies)
       .set({
-        content: sanitizeHtml(record.content),
-        contentFormat: record.contentFormat ?? null,
+        content: sanitizeHtml(record.content.value),
+        contentFormat: 'markdown',
         cid,
         labels: record.labels ?? null,
         indexedAt: new Date(),
