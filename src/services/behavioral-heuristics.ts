@@ -147,7 +147,7 @@ export function createBehavioralHeuristicsService(
 
     try {
       // Fetch recent topics
-      const topicConditions = [gte(topics.createdAt, windowStart)]
+      const topicConditions = [gte(topics.publishedAt, windowStart)]
       if (communityId) {
         topicConditions.push(eq(topics.communityDid, communityId))
       }

@@ -224,7 +224,6 @@ function sampleTopicRow(overrides?: Record<string, unknown>) {
     authorDid: TEST_DID,
     title: 'Test Topic Title',
     content: 'Test topic content goes here',
-    contentFormat: null,
     category: 'general',
     tags: ['test', 'example'],
     communityDid: 'did:plc:community123',
@@ -233,7 +232,7 @@ function sampleTopicRow(overrides?: Record<string, unknown>) {
     replyCount: 0,
     reactionCount: 0,
     lastActivityAt: new Date(TEST_NOW),
-    createdAt: new Date(TEST_NOW),
+    publishedAt: new Date(TEST_NOW),
     indexedAt: new Date(TEST_NOW),
     embedding: null,
     ...overrides,
@@ -246,7 +245,6 @@ function sampleReplyRow(overrides?: Record<string, unknown>) {
     rkey: TEST_REPLY_RKEY,
     authorDid: TEST_DID,
     content: 'This is a test reply',
-    contentFormat: null,
     rootUri: TEST_TOPIC_URI,
     rootCid: TEST_TOPIC_CID,
     parentUri: TEST_TOPIC_URI,
@@ -382,7 +380,10 @@ describe('reply routes', () => {
 
       // Verify record content
       const record = createRecordFn.mock.calls[0]?.[2] as Record<string, unknown>
-      expect(record.content).toBe('This is my reply to the topic.')
+      expect(record.content).toEqual({
+        $type: 'forum.barazo.richtext#markdown',
+        value: 'This is my reply to the topic.',
+      })
       expect(record.community).toBe('did:plc:community123')
       expect((record.root as Record<string, unknown>).uri).toBe(TEST_TOPIC_URI)
       expect((record.root as Record<string, unknown>).cid).toBe(TEST_TOPIC_CID)
@@ -778,14 +779,13 @@ describe('reply routes', () => {
 
       expect(response.statusCode).toBe(200)
       const body = response.json<{
-        replies: Array<{ uri: string; content: string; contentFormat: string | null }>
+        replies: Array<{ uri: string; content: string }>
       }>()
       expect(body.replies).toHaveLength(2)
 
       // Mod-deleted reply should show placeholder content
       const deletedReply = body.replies.find((r) => r.uri === modDeletedReply.uri)
       expect(deletedReply?.content).toBe('[Removed by moderator]')
-      expect(deletedReply?.contentFormat).toBeNull()
 
       // Normal reply should show original content
       const normal = body.replies.find((r) => r.uri === normalReply.uri)
@@ -2109,7 +2109,6 @@ describe('reply routes', () => {
       const authorDeletedReply = sampleReplyRow({
         isAuthorDeleted: true,
         content: 'Original content before deletion',
-        contentFormat: 'markdown',
       })
       selectChain.limit.mockResolvedValueOnce([authorDeletedReply])
 
@@ -2121,22 +2120,20 @@ describe('reply routes', () => {
 
       expect(response.statusCode).toBe(200)
       const body = response.json<{
-        replies: Array<{ content: string; contentFormat: string | null }>
+        replies: Array<{ content: string }>
       }>()
       expect(body.replies).toHaveLength(1)
       // Author-deleted replies return placeholder content
       expect(body.replies[0]?.content).toBe('[Deleted by author]')
-      expect(body.replies[0]?.contentFormat).toBeNull()
     })
 
-    it('returns placeholder content for mod-deleted reply and null contentFormat', async () => {
+    it('returns placeholder content for mod-deleted reply', async () => {
       selectChain.where.mockResolvedValueOnce([sampleTopicRow()])
 
       const modDeletedReply = sampleReplyRow({
         isModDeleted: true,
         isAuthorDeleted: false,
         content: 'Violating content',
-        contentFormat: 'markdown',
       })
       selectChain.limit.mockResolvedValueOnce([modDeletedReply])
 
@@ -2148,59 +2145,10 @@ describe('reply routes', () => {
 
       expect(response.statusCode).toBe(200)
       const body = response.json<{
-        replies: Array<{ content: string; contentFormat: string | null }>
+        replies: Array<{ content: string }>
       }>()
       expect(body.replies).toHaveLength(1)
       expect(body.replies[0]?.content).toBe('[Removed by moderator]')
-      expect(body.replies[0]?.contentFormat).toBeNull()
-    })
-
-    it('preserves contentFormat for non-deleted replies', async () => {
-      selectChain.where.mockResolvedValueOnce([sampleTopicRow()])
-
-      const markdownReply = sampleReplyRow({
-        contentFormat: 'markdown',
-        isAuthorDeleted: false,
-        isModDeleted: false,
-      })
-      selectChain.limit.mockResolvedValueOnce([markdownReply])
-
-      const encodedTopicUri = encodeURIComponent(TEST_TOPIC_URI)
-      const response = await app.inject({
-        method: 'GET',
-        url: `/api/topics/${encodedTopicUri}/replies`,
-      })
-
-      expect(response.statusCode).toBe(200)
-      const body = response.json<{
-        replies: Array<{ contentFormat: string | null }>
-      }>()
-      expect(body.replies).toHaveLength(1)
-      expect(body.replies[0]?.contentFormat).toBe('markdown')
-    })
-
-    it('returns contentFormat as null when contentFormat is undefined (not deleted)', async () => {
-      selectChain.where.mockResolvedValueOnce([sampleTopicRow()])
-
-      const noFormatReply = sampleReplyRow({
-        contentFormat: undefined,
-        isAuthorDeleted: false,
-        isModDeleted: false,
-      })
-      selectChain.limit.mockResolvedValueOnce([noFormatReply])
-
-      const encodedTopicUri = encodeURIComponent(TEST_TOPIC_URI)
-      const response = await app.inject({
-        method: 'GET',
-        url: `/api/topics/${encodedTopicUri}/replies`,
-      })
-
-      expect(response.statusCode).toBe(200)
-      const body = response.json<{
-        replies: Array<{ contentFormat: string | null }>
-      }>()
-      expect(body.replies).toHaveLength(1)
-      expect(body.replies[0]?.contentFormat).toBeNull()
     })
 
     it('prioritizes mod-deleted placeholder over author-deleted when both are true', async () => {

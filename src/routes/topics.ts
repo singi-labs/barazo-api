@@ -62,8 +62,8 @@ const topicJsonSchema = {
     },
     title: { type: 'string' as const },
     content: { type: 'string' as const },
-    contentFormat: { type: ['string', 'null'] as const },
     category: { type: 'string' as const },
+    site: { type: ['string', 'null'] as const },
     tags: { type: ['array', 'null'] as const, items: { type: 'string' as const } },
     labels: {
       type: ['object', 'null'] as const,
@@ -90,7 +90,7 @@ const topicJsonSchema = {
     pinnedAt: { type: ['string', 'null'] as const, format: 'date-time' as const },
     categoryMaturityRating: { type: 'string' as const, enum: ['safe', 'mature', 'adult'] },
     lastActivityAt: { type: 'string' as const, format: 'date-time' as const },
-    createdAt: { type: 'string' as const, format: 'date-time' as const },
+    publishedAt: { type: 'string' as const, format: 'date-time' as const },
     indexedAt: { type: 'string' as const, format: 'date-time' as const },
   },
 }
@@ -117,8 +117,8 @@ function serializeTopic(row: typeof topics.$inferSelect, categoryMaturityRating:
     authorDid: row.authorDid,
     title: placeholderTitle,
     content: isDeleted ? '' : row.content,
-    contentFormat: isDeleted ? null : (row.contentFormat ?? null),
     category: row.category,
+    site: row.site ?? null,
     tags: row.tags ?? null,
     labels: row.labels ?? null,
     communityDid: row.communityDid,
@@ -133,7 +133,7 @@ function serializeTopic(row: typeof topics.$inferSelect, categoryMaturityRating:
     pinnedAt: row.pinnedAt?.toISOString() ?? null,
     categoryMaturityRating,
     lastActivityAt: row.lastActivityAt.toISOString(),
-    createdAt: row.createdAt.toISOString(),
+    publishedAt: row.publishedAt.toISOString(),
     indexedAt: row.indexedAt.toISOString(),
   }
 }
@@ -244,7 +244,7 @@ export function topicRoutes(): FastifyPluginCallback {
                 category: { type: 'string' },
                 authorHandle: { type: 'string' },
                 moderationStatus: { type: 'string', enum: ['approved', 'held', 'rejected'] },
-                createdAt: { type: 'string', format: 'date-time' },
+                publishedAt: { type: 'string', format: 'date-time' },
               },
             },
             400: errorResponseSchema,
@@ -363,11 +363,11 @@ export function topicRoutes(): FastifyPluginCallback {
         // Build AT Protocol record
         const record: Record<string, unknown> = {
           title,
-          content,
+          content: { $type: 'forum.barazo.richtext#markdown', value: content },
           category,
           tags: tags ?? [],
           community: communityDid,
-          createdAt: now,
+          publishedAt: now,
           ...(labels ? { labels } : {}),
         }
 
@@ -410,7 +410,7 @@ export function topicRoutes(): FastifyPluginCallback {
               reactionCount: 0,
               moderationStatus: contentModerationStatus,
               lastActivityAt: new Date(now),
-              createdAt: new Date(now),
+              publishedAt: new Date(now),
               indexedAt: new Date(),
             })
             .onConflictDoUpdate({
@@ -492,7 +492,7 @@ export function topicRoutes(): FastifyPluginCallback {
             category,
             authorHandle: user.handle,
             moderationStatus: contentModerationStatus,
-            createdAt: now,
+            publishedAt: now,
           })
         } catch (err: unknown) {
           if (err instanceof Error && 'statusCode' in err) throw err
@@ -713,7 +713,7 @@ export function topicRoutes(): FastifyPluginCallback {
 
         // Time-decay popularity score:
         //   score = (reply_count + reaction_count * 0.3) / (age_in_hours + 2) ^ 1.2
-        const popularityScore = sql`(${topics.replyCount} + ${topics.reactionCount} * 0.3) / POWER(EXTRACT(EPOCH FROM (NOW() - ${topics.createdAt})) / 3600.0 + 2, 1.2)`
+        const popularityScore = sql`(${topics.replyCount} + ${topics.reactionCount} * 0.3) / POWER(EXTRACT(EPOCH FROM (NOW() - ${topics.publishedAt})) / 3600.0 + 2, 1.2)`
 
         // Pinned-first ordering: when browsing a category, both category-pinned
         // and forum-pinned topics float to the top. On the homepage (no category
@@ -1134,11 +1134,15 @@ export function topicRoutes(): FastifyPluginCallback {
         // Build updated record for PDS
         const updatedRecord: Record<string, unknown> = {
           title: updates.title ?? topic.title,
-          content: updates.content ?? topic.content,
+          content: {
+            $type: 'forum.barazo.richtext#markdown',
+            value: updates.content ?? topic.content,
+          },
           category: updates.category ?? topic.category,
           tags: updates.tags ?? topic.tags ?? [],
           community: topic.communityDid,
-          createdAt: topic.createdAt.toISOString(),
+          publishedAt: topic.publishedAt.toISOString(),
+          ...(topic.site ? { site: topic.site } : {}),
           ...(resolvedLabels ? { labels: resolvedLabels } : {}),
         }
 

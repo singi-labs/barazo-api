@@ -22,7 +22,7 @@ describe('topics schema', () => {
       'authorDid',
       'title',
       'content',
-      'contentFormat',
+      'site',
       'category',
       'tags',
       'communityDid',
@@ -31,7 +31,7 @@ describe('topics schema', () => {
       'replyCount',
       'reactionCount',
       'lastActivityAt',
-      'createdAt',
+      'publishedAt',
       'indexedAt',
       // Note: search_vector (tsvector) and embedding (vector) columns exist
       // in the database but are managed outside Drizzle schema (migration 0010).
@@ -54,7 +54,7 @@ describe('topics schema', () => {
   })
 
   it('has nullable optional columns', () => {
-    expect(columns.contentFormat.notNull).toBe(false)
+    expect(columns.site.notNull).toBe(false)
     expect(columns.tags.notNull).toBe(false)
     expect(columns.labels.notNull).toBe(false)
   })

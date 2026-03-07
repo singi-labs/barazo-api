@@ -18,7 +18,6 @@ export const replies = pgTable(
     rkey: text('rkey').notNull(),
     authorDid: text('author_did').notNull(),
     content: text('content').notNull(),
-    contentFormat: text('content_format'),
     rootUri: text('root_uri').notNull(),
     rootCid: text('root_cid').notNull(),
     parentUri: text('parent_uri').notNull(),

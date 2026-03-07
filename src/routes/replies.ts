@@ -60,7 +60,6 @@ const replyJsonSchema = {
       },
     },
     content: { type: 'string' as const },
-    contentFormat: { type: ['string', 'null'] as const },
     rootUri: { type: 'string' as const },
     rootCid: { type: 'string' as const },
     parentUri: { type: 'string' as const },
@@ -103,7 +102,6 @@ const replyJsonSchema = {
 function serializeReply(row: typeof replies.$inferSelect) {
   const depth = row.depth
 
-  const isDeleted = row.isAuthorDeleted || row.isModDeleted
   const placeholderContent = row.isModDeleted
     ? '[Removed by moderator]'
     : row.isAuthorDeleted
@@ -115,7 +113,6 @@ function serializeReply(row: typeof replies.$inferSelect) {
     rkey: row.rkey,
     authorDid: row.authorDid,
     content: placeholderContent,
-    contentFormat: isDeleted ? null : (row.contentFormat ?? null),
     rootUri: row.rootUri,
     rootCid: row.rootCid,
     parentUri: row.parentUri,
@@ -335,7 +332,7 @@ export function replyRoutes(): FastifyPluginCallback {
 
         // Build AT Protocol record
         const record: Record<string, unknown> = {
-          content,
+          content: { $type: 'forum.barazo.richtext#markdown', value: content },
           community: topic.communityDid,
           root: { uri: topic.uri, cid: topic.cid },
           parent: { uri: parentRefUri, cid: parentRefCid },
@@ -842,7 +839,7 @@ export function replyRoutes(): FastifyPluginCallback {
 
         // Build updated record for PDS
         const updatedRecord: Record<string, unknown> = {
-          content,
+          content: { $type: 'forum.barazo.richtext#markdown', value: content },
           community: replyRow.communityDid,
           root: { uri: replyRow.rootUri, cid: replyRow.rootCid },
           parent: { uri: replyRow.parentUri, cid: replyRow.parentCid },

@@ -217,7 +217,6 @@ function sampleTopicRow(overrides?: Record<string, unknown>) {
     authorDid: TEST_DID,
     title: 'Test Topic Title',
     content: 'Test topic content goes here',
-    contentFormat: null,
     category: 'general',
     tags: ['test', 'example'],
     communityDid: 'did:plc:community123',
@@ -230,7 +229,7 @@ function sampleTopicRow(overrides?: Record<string, unknown>) {
     pinnedScope: null,
     pinnedAt: null,
     lastActivityAt: new Date(TEST_NOW),
-    createdAt: new Date(TEST_NOW),
+    publishedAt: new Date(TEST_NOW),
     indexedAt: new Date(TEST_NOW),
     embedding: null,
     ...overrides,
@@ -2716,7 +2715,6 @@ describe('topic routes', () => {
           isAuthorDeleted: true,
           title: 'Original Title',
           content: 'Original content',
-          contentFormat: 'markdown',
         }),
       ]
       selectChain.limit.mockResolvedValueOnce(rows)
@@ -2731,37 +2729,12 @@ describe('topic routes', () => {
         topics: Array<{
           title: string
           content: string
-          contentFormat: string | null
           isAuthorDeleted: boolean
         }>
       }>()
       expect(body.topics).toHaveLength(1)
       expect(body.topics[0]?.title).toBe('[Deleted by author]')
       expect(body.topics[0]?.content).toBe('')
-      expect(body.topics[0]?.contentFormat).toBeNull()
-    })
-
-    it('serializes topics with contentFormat when present', async () => {
-      setupMaturityMocks(true)
-
-      const rows = [
-        sampleTopicRow({
-          isAuthorDeleted: false,
-          contentFormat: 'markdown',
-        }),
-      ]
-      selectChain.limit.mockResolvedValueOnce(rows)
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/topics',
-      })
-
-      expect(response.statusCode).toBe(200)
-      const body = response.json<{
-        topics: Array<{ contentFormat: string | null }>
-      }>()
-      expect(body.topics[0]?.contentFormat).toBe('markdown')
     })
 
     it('serializes topics with null tags as null', async () => {

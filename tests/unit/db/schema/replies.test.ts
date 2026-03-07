@@ -21,7 +21,6 @@ describe('replies schema', () => {
       'rkey',
       'authorDid',
       'content',
-      'contentFormat',
       'rootUri',
       'rootCid',
       'parentUri',
@@ -56,7 +55,6 @@ describe('replies schema', () => {
   })
 
   it('has nullable optional columns', () => {
-    expect(columns.contentFormat.notNull).toBe(false)
     expect(columns.labels.notNull).toBe(false)
   })
 

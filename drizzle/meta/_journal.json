@@ -78,6 +78,13 @@
       "when": 1772759004891,
       "tag": "0010_mature_madrox",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1772870400000,
+      "tag": "0011_lexicon-v030-compat",
+      "breakpoints": true
     }
   ]
 }

@@ -47,6 +47,7 @@ export class ReplyIndexer {
     const { root, parent } = record
     const clientCreatedAt = new Date(record.createdAt)
     const createdAt = live ? clampCreatedAt(clientCreatedAt) : clientCreatedAt
+    const contentValue = typeof record.content === 'string' ? record.content : record.content.value
 
     await this.db.transaction(async (tx) => {
       // Compute depth: direct reply to topic = 1, nested = parent_depth + 1
@@ -65,8 +66,7 @@ export class ReplyIndexer {
           uri,
           rkey,
           authorDid: did,
-          content: sanitizeHtml(record.content),
-          contentFormat: record.contentFormat ?? null,
+          content: sanitizeHtml(contentValue),
           rootUri: root.uri,
           rootCid: root.cid,
           parentUri: parent.uri,
@@ -95,12 +95,12 @@ export class ReplyIndexer {
 
   async handleUpdate(params: UpdateParams): Promise<void> {
     const { uri, cid, record } = params
+    const contentValue = typeof record.content === 'string' ? record.content : record.content.value
 
     await this.db
       .update(replies)
       .set({
-        content: sanitizeHtml(record.content),
-        contentFormat: record.contentFormat ?? null,
+        content: sanitizeHtml(contentValue),
         cid,
         labels: record.labels ?? null,
         indexedAt: new Date(),

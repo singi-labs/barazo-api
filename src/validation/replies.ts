@@ -72,7 +72,6 @@ export const replyResponseSchema = z.object({
   rkey: z.string(),
   authorDid: z.string(),
   content: z.string(),
-  contentFormat: z.string().nullable(),
   rootUri: z.string(),
   rootCid: z.string(),
   parentUri: z.string(),

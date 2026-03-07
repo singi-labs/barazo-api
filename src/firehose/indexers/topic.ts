@@ -31,8 +31,9 @@ export class TopicIndexer {
 
   async handleCreate(params: CreateParams): Promise<void> {
     const { uri, rkey, did, cid, record, live, trustStatus } = params
-    const clientCreatedAt = new Date(record.createdAt)
-    const createdAt = live ? clampCreatedAt(clientCreatedAt) : clientCreatedAt
+    const clientPublishedAt = new Date(record.publishedAt)
+    const publishedAt = live ? clampCreatedAt(clientPublishedAt) : clientPublishedAt
+    const contentValue = typeof record.content === 'string' ? record.content : record.content.value
 
     await this.db
       .insert(topics)
@@ -41,24 +42,24 @@ export class TopicIndexer {
         rkey,
         authorDid: did,
         title: sanitizeText(record.title),
-        content: sanitizeHtml(record.content),
-        contentFormat: record.contentFormat ?? null,
+        content: sanitizeHtml(contentValue),
         category: record.category,
+        site: record.site ?? null,
         tags: record.tags ?? null,
         communityDid: record.community,
         cid,
         labels: record.labels ?? null,
-        createdAt,
-        lastActivityAt: createdAt,
+        publishedAt,
+        lastActivityAt: publishedAt,
         trustStatus,
       })
       .onConflictDoUpdate({
         target: topics.uri,
         set: {
           title: sanitizeText(record.title),
-          content: sanitizeHtml(record.content),
-          contentFormat: record.contentFormat ?? null,
+          content: sanitizeHtml(contentValue),
           category: record.category,
+          site: record.site ?? null,
           tags: record.tags ?? null,
           cid,
           labels: record.labels ?? null,
@@ -71,14 +72,15 @@ export class TopicIndexer {
 
   async handleUpdate(params: CreateParams): Promise<void> {
     const { uri, cid, record } = params
+    const contentValue = typeof record.content === 'string' ? record.content : record.content.value
 
     await this.db
       .update(topics)
       .set({
         title: sanitizeText(record.title),
-        content: sanitizeHtml(record.content),
-        contentFormat: record.contentFormat ?? null,
+        content: sanitizeHtml(contentValue),
         category: record.category,
+        site: record.site ?? null,
         tags: record.tags ?? null,
         cid,
         labels: record.labels ?? null,

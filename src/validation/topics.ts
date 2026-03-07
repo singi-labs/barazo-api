@@ -91,8 +91,8 @@ export const topicResponseSchema = z.object({
   authorDid: z.string(),
   title: z.string(),
   content: z.string(),
-  contentFormat: z.string().nullable(),
   category: z.string(),
+  site: z.string().nullable(),
   tags: z.array(z.string()).nullable(),
   labels: z.object({ values: z.array(z.object({ val: z.string() })) }).nullable(),
   communityDid: z.string(),
@@ -100,7 +100,7 @@ export const topicResponseSchema = z.object({
   replyCount: z.number(),
   reactionCount: z.number(),
   lastActivityAt: z.string(),
-  createdAt: z.string(),
+  publishedAt: z.string(),
   indexedAt: z.string(),
 })
 
