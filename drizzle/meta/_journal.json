@@ -85,6 +85,13 @@
       "when": 1772870400000,
       "tag": "0011_lexicon-v030-compat",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1773062314074,
+      "tag": "0012_overconfident_jackal",
+      "breakpoints": true
     }
   ]
 }

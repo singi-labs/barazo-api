@@ -40,4 +40,13 @@ describe('moderationActions schema', () => {
     expect(columns.targetUri.notNull).toBe(false)
     expect(columns.targetDid.notNull).toBe(false)
   })
+
+  it('should include annotation action types in enum', () => {
+    const columns = getTableColumns(moderationActions)
+    const actionCol = columns.action as unknown as { enumValues: string[] }
+    expect(actionCol.enumValues).toContain('note_created')
+    expect(actionCol.enumValues).toContain('warning_issued')
+    expect(actionCol.enumValues).toContain('notice_added')
+    expect(actionCol.enumValues).toContain('notice_removed')
+  })
 })
