@@ -7,7 +7,7 @@ export const moderationActions = pgTable(
   {
     id: serial('id').primaryKey(),
     action: text('action', {
-      enum: ['lock', 'unlock', 'pin', 'unpin', 'delete', 'ban', 'unban'],
+      enum: ['lock', 'unlock', 'pin', 'unpin', 'delete', 'ban', 'unban', 'note_created', 'warning_issued', 'notice_added', 'notice_removed'],
     }).notNull(),
     targetUri: text('target_uri'),
     targetDid: text('target_did'),
