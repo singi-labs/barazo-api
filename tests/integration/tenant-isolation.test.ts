@@ -76,8 +76,8 @@ async function pushSchema(client: ReturnType<typeof postgres>): Promise<void> {
       author_did TEXT NOT NULL,
       title TEXT NOT NULL,
       content TEXT NOT NULL,
-      content_format TEXT,
       category TEXT NOT NULL,
+      site TEXT,
       tags JSONB,
       community_did TEXT NOT NULL,
       cid TEXT NOT NULL,
@@ -86,7 +86,7 @@ async function pushSchema(client: ReturnType<typeof postgres>): Promise<void> {
       reaction_count INTEGER NOT NULL DEFAULT 0,
       vote_count INTEGER NOT NULL DEFAULT 0,
       last_activity_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      created_at TIMESTAMPTZ NOT NULL,
+      published_at TIMESTAMPTZ NOT NULL,
       indexed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       is_locked BOOLEAN NOT NULL DEFAULT false,
       is_pinned BOOLEAN NOT NULL DEFAULT false,
@@ -106,7 +106,6 @@ async function pushSchema(client: ReturnType<typeof postgres>): Promise<void> {
       rkey TEXT NOT NULL,
       author_did TEXT NOT NULL,
       content TEXT NOT NULL,
-      content_format TEXT,
       root_uri TEXT NOT NULL,
       root_cid TEXT NOT NULL,
       parent_uri TEXT NOT NULL,
@@ -206,7 +205,7 @@ describe('tenant isolation (RLS)', () => {
         category: 'general',
         communityDid: COMMUNITY_A,
         cid: 'cid-aaa',
-        createdAt: now,
+        publishedAt: now,
       },
       {
         uri: 'at://did:plc:user2/forum.barazo.topic/bbb',
@@ -217,7 +216,7 @@ describe('tenant isolation (RLS)', () => {
         category: 'general',
         communityDid: COMMUNITY_B,
         cid: 'cid-bbb',
-        createdAt: now,
+        publishedAt: now,
       },
     ])
 
@@ -402,7 +401,7 @@ describe('tenant isolation (RLS)', () => {
             category: 'general',
             communityDid: COMMUNITY_A, // Mismatch!
             cid: 'cid-evil',
-            createdAt: new Date(),
+            publishedAt: new Date(),
           })
         )
         expect.unreachable('INSERT should have been blocked by RLS')
