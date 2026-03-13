@@ -1,1 +1,7 @@
+branch=$(git rev-parse --abbrev-ref HEAD)
+if [ "$branch" = "main" ]; then
+  echo "ERROR: Direct commits to main are not allowed. Use a feature branch."
+  exit 1
+fi
+
 pnpm exec lint-staged
