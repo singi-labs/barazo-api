@@ -3,17 +3,6 @@ name: CI
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'tsconfig.json'
-      - 'vitest.config*.ts'
-      - 'drizzle/**'
-      - 'drizzle.config.ts'
-      - '.github/workflows/ci.yml'
-      - '.github/actions/**'
   push:
     branches: [main]
 
