@@ -35,6 +35,7 @@ overrides:
   minimatch: '>=10.2.3'
   rollup: '>=4.59.0'
   esbuild: '>=0.25.0'
+  undici: '>=7.24.0'
 
 importers:
   .:
@@ -5683,17 +5684,10 @@ packages:
         integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==,
       }
 
-  undici@6.23.0:
+  undici@7.24.4:
     resolution:
       {
-        integrity: sha512-VfQPToRA5FZs/qJxLIinmU59u0r7LXqoJkCzinq3ckNJp3vKEh7jTWN589YQ5+aoAC/TGRLyJLCPKcLQbM8r9g==,
-      }
-    engines: { node: '>=18.17' }
-
-  undici@7.22.0:
-    resolution:
-      {
-        integrity: sha512-RqslV2Us5BrllB+JeiZnK4peryVTndy9Dnqq62S3yYRRTj0tFQCwEniUy2167skdGOy3vqRzEvl1Dm4sV2ReDg==,
+        integrity: sha512-BM/JzwwaRXxrLdElV2Uo6cTLEjhSb3WXboncJamZ15NgUURmvlXvxa6xkwIOILIjPNo9i8ku136ZvWV0Uly8+w==,
       }
     engines: { node: '>=20.18.1' }
 
@@ -6011,7 +6005,7 @@ snapshots:
       '@atproto-labs/fetch': 0.2.3
       '@atproto-labs/pipe': 0.1.1
       ipaddr.js: 2.3.0
-      undici: 6.23.0
+      undici: 7.24.4
 
   '@atproto-labs/fetch@0.2.3':
     dependencies:
@@ -8545,7 +8539,7 @@ snapshots:
       saxes: 6.0.0
       symbol-tree: 3.2.4
       tough-cookie: 6.0.0
-      undici: 7.22.0
+      undici: 7.24.4
       w3c-xmlserializer: 5.0.0
       webidl-conversions: 8.0.1
       whatwg-mimetype: 5.0.0
@@ -9301,7 +9295,7 @@ snapshots:
       ssh-remote-port-forward: 1.0.4
       tar-fs: 3.1.1
       tmp: 0.2.5
-      undici: 7.22.0
+      undici: 7.24.4
     transitivePeerDependencies:
       - bare-abort-controller
       - bare-buffer
@@ -9406,9 +9400,7 @@ snapshots:
 
   undici-types@7.18.2: {}
 
-  undici@6.23.0: {}
-
-  undici@7.22.0: {}
+  undici@7.24.4: {}
 
   unicode-segmenter@0.14.5: {}
 
