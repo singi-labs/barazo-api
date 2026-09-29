@@ -48,6 +48,7 @@ import { uploadRoutes } from './routes/uploads.js'
 import { adminSybilRoutes } from './routes/admin-sybil.js'
 import { adminDesignRoutes } from './routes/admin-design.js'
 import { adminPluginRoutes } from './routes/admin-plugins.js'
+import { communityRulesRoutes } from './routes/community-rules.js'
 import { discoverPlugins, syncPluginsToDb, validateAndFilterPlugins } from './lib/plugins/loader.js'
 import { buildLoadedPlugin, executeHook, getPluginShortName } from './lib/plugins/runtime.js'
 import { createPluginContext, type CacheAdapter } from './lib/plugins/context.js'
@@ -506,6 +507,7 @@ export async function buildApp(env: Env) {
   await app.register(adminSybilRoutes())
   await app.register(adminDesignRoutes())
   await app.register(adminPluginRoutes())
+  await app.register(communityRulesRoutes())
 
   // OpenAPI spec endpoint (after routes so all schemas are registered)
   app.get('/api/openapi.json', { schema: { hide: true } }, async (_request, reply) => {

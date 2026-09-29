@@ -4,7 +4,7 @@ import { z } from 'zod/v4'
 // Param schemas for block/mute action endpoints
 // ---------------------------------------------------------------------------
 
-// TODO: Import from @singi-labs/lexicons once didRegex export is published (see barazo-lexicons#44)
+// TODO: Import from @singi-labs/barazo-lexicons once didRegex export is published (see barazo-lexicons#44)
 const didRegex = /^did:[a-z]+:[a-zA-Z0-9._:%-]+$/
 
 /** Schema for validating :did route parameter. */
