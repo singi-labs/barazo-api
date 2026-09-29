@@ -36,7 +36,7 @@
     "@atproto/oauth-client-node": "0.3.17",
     "@atproto/tap": "0.2.7",
     "@barazo/plugin-signatures": "link:../barazo-plugins/packages/plugin-signatures",
-    "@singi-labs/lexicons": "link:../barazo-lexicons",
+    "@singi-labs/barazo-lexicons": "link:../barazo-lexicons",
     "@fastify/cookie": "11.0.2",
     "@fastify/cors": "11.2.0",
     "@fastify/helmet": "13.0.2",
@@ -80,7 +80,8 @@
     "overrides": {
       "minimatch": ">=10.2.3",
       "rollup": ">=4.59.0",
-      "esbuild": ">=0.25.0"
+      "esbuild": ">=0.25.0",
+      "undici": ">=7.24.0"
     }
   }
 }

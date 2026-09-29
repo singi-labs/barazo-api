@@ -1,4 +1,4 @@
-import type { LEXICON_IDS } from '@singi-labs/lexicons'
+import type { LEXICON_IDS } from '@singi-labs/barazo-lexicons'
 
 /** Record actions from the firehose. */
 export type RecordAction = 'create' | 'update' | 'delete'
