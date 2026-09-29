@@ -3,7 +3,7 @@
 # Keep these versions in sync with the workspace root catalog.
 catalog:
   zod: '4.3.6'
-  vitest: '4.0.18'
+  vitest: '4.1.11'
   typescript: '5.9.3'
   typescript-eslint: '8.56.1'
   eslint: '10.0.2'
