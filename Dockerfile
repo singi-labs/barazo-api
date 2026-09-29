@@ -46,7 +46,7 @@ COPY barazo-plugins/packages/plugin-signatures/ ./barazo-plugins/packages/plugin
 COPY barazo-api/ ./barazo-api/
 
 # Build workspace dependencies first, then API
-RUN pnpm --filter @singi-labs/lexicons build && \
+RUN pnpm --filter @singi-labs/barazo-lexicons build && \
     pnpm --filter @barazo/plugin-signatures run build:backend && \
     pnpm --filter barazo-api build
 
@@ -58,10 +58,10 @@ RUN pnpm --filter barazo-api deploy /app/deploy --prod
 # /workspace/, which won't exist in the runner stage. Fix each:
 # - lexicons: use pnpm deploy to get package + resolved dependencies
 # - plugin-signatures: only has peerDeps (satisfied by API), copy source directly
-RUN pnpm --filter @singi-labs/lexicons deploy /tmp/lexicons-deploy --prod
+RUN pnpm --filter @singi-labs/barazo-lexicons deploy /tmp/lexicons-deploy --prod
 
-RUN rm -rf /app/deploy/node_modules/@singi-labs/lexicons \
-    && cp -r /tmp/lexicons-deploy /app/deploy/node_modules/@singi-labs/lexicons \
+RUN rm -rf /app/deploy/node_modules/@singi-labs/barazo-lexicons \
+    && cp -r /tmp/lexicons-deploy /app/deploy/node_modules/@singi-labs/barazo-lexicons \
     && rm -rf /app/deploy/node_modules/@barazo/plugin-signatures \
     && cp -r /workspace/barazo-plugins/packages/plugin-signatures /app/deploy/node_modules/@barazo/plugin-signatures
 
