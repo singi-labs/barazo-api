@@ -30,7 +30,22 @@ export const unbanUserSchema = z.object({
 export const moderationLogQuerySchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),
-  action: z.enum(['lock', 'unlock', 'pin', 'unpin', 'delete', 'ban', 'unban', 'note_created', 'warning_issued', 'notice_added', 'notice_removed']).optional(),
+  action: z
+    .enum([
+      'lock',
+      'unlock',
+      'pin',
+      'unpin',
+      'delete',
+      'ban',
+      'unban',
+      'note_created',
+      'note_deleted',
+      'warning_issued',
+      'notice_added',
+      'notice_removed',
+    ])
+    .optional(),
 })
 
 // ---------------------------------------------------------------------------

@@ -1,12 +1,7 @@
 import { eq, and, desc, sql, isNull } from 'drizzle-orm'
 import { requireCommunityDid } from '../middleware/community-resolver.js'
 import type { FastifyPluginCallback } from 'fastify'
-import {
-  notFound,
-  forbidden,
-  badRequest,
-  errorResponseSchema,
-} from '../lib/api-errors.js'
+import { notFound, forbidden, badRequest, errorResponseSchema } from '../lib/api-errors.js'
 import {
   createModNoteSchema,
   modNoteQuerySchema,
@@ -371,7 +366,7 @@ export function modAnnotationRoutes(): FastifyPluginCallback {
           .where(and(eq(modNotes.id, id), eq(modNotes.communityDid, communityDid)))
 
         await db.insert(moderationActions).values({
-          action: 'note_created',
+          action: 'note_deleted',
           targetUri: note.subjectUri,
           targetDid: note.subjectDid,
           moderatorDid: user.did,
@@ -379,10 +374,7 @@ export function modAnnotationRoutes(): FastifyPluginCallback {
           reason: `Deleted mod note #${String(id)}`,
         })
 
-        app.log.info(
-          { noteId: id, moderatorDid: user.did },
-          'Mod note deleted'
-        )
+        app.log.info({ noteId: id, moderatorDid: user.did }, 'Mod note deleted')
 
         return reply.status(200).send({ success: true })
       }
@@ -405,7 +397,10 @@ export function modAnnotationRoutes(): FastifyPluginCallback {
             required: ['topicUri', 'noticeType', 'headline'],
             properties: {
               topicUri: { type: 'string' },
-              noticeType: { type: 'string', enum: ['closed', 'moved', 'outdated', 'announcement', 'custom'] },
+              noticeType: {
+                type: 'string',
+                enum: ['closed', 'moved', 'outdated', 'announcement', 'custom'],
+              },
               headline: { type: 'string', minLength: 1, maxLength: 200 },
               body: { type: 'string', maxLength: 2000 },
             },
@@ -481,7 +476,8 @@ export function modAnnotationRoutes(): FastifyPluginCallback {
       {
         schema: {
           tags: ['Mod Annotations'],
-          summary: 'List topic notices (public when filtered by topicUri, moderator-only otherwise)',
+          summary:
+            'List topic notices (public when filtered by topicUri, moderator-only otherwise)',
           querystring: {
             type: 'object',
             properties: {
@@ -638,10 +634,7 @@ export function modAnnotationRoutes(): FastifyPluginCallback {
           reason: `Dismissed notice: ${notice.headline}`,
         })
 
-        app.log.info(
-          { noticeId: id, moderatorDid: user.did },
-          'Topic notice dismissed'
-        )
+        app.log.info({ noticeId: id, moderatorDid: user.did }, 'Topic notice dismissed')
 
         return reply.status(200).send({ notice: serializeTopicNotice(updated) })
       }
@@ -664,7 +657,10 @@ export function modAnnotationRoutes(): FastifyPluginCallback {
             required: ['targetDid', 'warningType', 'message'],
             properties: {
               targetDid: { type: 'string' },
-              warningType: { type: 'string', enum: ['off_topic', 'harassment', 'rule_violation', 'other', 'custom'] },
+              warningType: {
+                type: 'string',
+                enum: ['off_topic', 'harassment', 'rule_violation', 'other', 'custom'],
+              },
               message: { type: 'string', minLength: 1, maxLength: 2000 },
               modComment: { type: 'string', maxLength: 300 },
               internalNote: { type: 'string', maxLength: 5000 },
@@ -735,10 +731,7 @@ export function modAnnotationRoutes(): FastifyPluginCallback {
           reason: message.slice(0, 200),
         })
 
-        app.log.info(
-          { warningId: warning.id, moderatorDid: user.did, targetDid },
-          'Warning issued'
-        )
+        app.log.info({ warningId: warning.id, moderatorDid: user.did, targetDid }, 'Warning issued')
 
         return reply.status(201).send({ warning: serializeWarning(warning) })
       }
@@ -903,10 +896,7 @@ export function modAnnotationRoutes(): FastifyPluginCallback {
           throw notFound('Failed to acknowledge warning')
         }
 
-        app.log.info(
-          { warningId: id, userDid: user.did },
-          'Warning acknowledged'
-        )
+        app.log.info({ warningId: id, userDid: user.did }, 'Warning acknowledged')
 
         return reply.status(200).send({ warning: serializeWarning(updated) })
       }
