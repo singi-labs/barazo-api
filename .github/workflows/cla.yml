@@ -24,7 +24,7 @@ jobs:
         with:
           path-to-signatures: 'signatures/cla.json'
           path-to-document: 'https://github.com/singi-labs/.github/blob/main/CLA.md'
-          branch: 'main'
+          branch: 'cla-signatures'
           allowlist: 'gxjansen,dependabot[bot],github-actions[bot]'
           remote-organization-name: 'singi-labs'
           remote-repository-name: '.github'
