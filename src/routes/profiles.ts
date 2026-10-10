@@ -187,7 +187,12 @@ function defaultCommunityPreferences(communityDid: string) {
     mutedWords: null,
     blockedDids: null,
     mutedDids: null,
-    notificationPrefs: null,
+    notificationPrefs: {
+      replies: false,
+      reactions: false,
+      mentions: true,
+      modActions: false,
+    },
     updatedAt: new Date().toISOString(),
   }
 }

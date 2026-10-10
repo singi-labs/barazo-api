@@ -1,7 +1,8 @@
-import { eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import type { Database } from '../db/index.js'
 import type { Logger } from '../lib/logger.js'
 import { notifications } from '../db/schema/notifications.js'
+import { userCommunityPreferences } from '../db/schema/user-preferences.js'
 import { topics } from '../db/schema/topics.js'
 import { replies } from '../db/schema/replies.js'
 import { users } from '../db/schema/users.js'
@@ -108,6 +109,43 @@ export interface CrossPostFailureNotificationParams {
 // Helpers
 // ---------------------------------------------------------------------------
 
+type NotificationPrefs = {
+  replies: boolean
+  reactions: boolean
+  mentions: boolean
+  modActions: boolean
+}
+
+/**
+ * Determine whether a notification of a given type should be delivered based on
+ * the recipient's stored preferences.
+ *
+ * Defaults when no preferences are stored:
+ *   - mentions: true (enabled by default)
+ *   - replies, reactions, modActions: false
+ *
+ * mod_action is always delivered regardless of preferences — users must receive
+ * moderation decisions about their content.
+ */
+export function isNotificationAllowed(
+  type: NotificationType,
+  prefs: NotificationPrefs | null | undefined
+): boolean {
+  if (type === 'mod_action') {
+    return true
+  }
+
+  if (!prefs) {
+    return type === 'mention'
+  }
+
+  if (type === 'reply') return prefs.replies
+  if (type === 'reaction') return prefs.reactions
+  if (type === 'mention') return prefs.mentions
+
+  return true
+}
+
 /**
  * Extract unique AT Protocol handles from content text.
  * Returns at most MAX_MENTION_NOTIFICATIONS handles.
@@ -147,6 +185,7 @@ export function createNotificationService(db: Database, logger: Logger): Notific
   /**
    * Insert a single notification row.
    * Skips silently if recipientDid === actorDid (no self-notifications).
+   * Checks per-community notification preferences before inserting.
    */
   async function insertNotification(
     recipientDid: string,
@@ -157,6 +196,23 @@ export function createNotificationService(db: Database, logger: Logger): Notific
   ): Promise<void> {
     if (recipientDid === actorDid) {
       return
+    }
+
+    if (type !== 'mod_action') {
+      const prefRows = await db
+        .select({ notificationPrefs: userCommunityPreferences.notificationPrefs })
+        .from(userCommunityPreferences)
+        .where(
+          and(
+            eq(userCommunityPreferences.did, recipientDid),
+            eq(userCommunityPreferences.communityDid, communityDid)
+          )
+        )
+
+      const prefs = prefRows[0]?.notificationPrefs
+      if (!isNotificationAllowed(type, prefs)) {
+        return
+      }
     }
 
     await db.insert(notifications).values({

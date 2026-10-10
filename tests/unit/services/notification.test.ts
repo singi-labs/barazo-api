@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createNotificationService, extractMentions } from '../../../src/services/notification.js'
+import {
+  createNotificationService,
+  extractMentions,
+  isNotificationAllowed,
+} from '../../../src/services/notification.js'
 import type { NotificationService } from '../../../src/services/notification.js'
 import { createMockDb, createChainableProxy, resetDbMocks } from '../../helpers/mock-db.js'
 import type { MockDb } from '../../helpers/mock-db.js'
@@ -7,6 +11,9 @@ import type { MockDb } from '../../helpers/mock-db.js'
 // ---------------------------------------------------------------------------
 // Test constants
 // ---------------------------------------------------------------------------
+
+const ALLOW_ALL_PREFS = { replies: true, reactions: true, mentions: true, modActions: true }
+const DENY_ALL_PREFS = { replies: false, reactions: false, mentions: false, modActions: false }
 
 const ACTOR_DID = 'did:plc:actor123'
 const TOPIC_AUTHOR_DID = 'did:plc:topicauthor456'
@@ -102,9 +109,10 @@ describe('extractMentions', () => {
 
 describe('notifyOnReply', () => {
   it('notifies topic author when someone replies', async () => {
-    // Mock: select topic author
-    const selectChain = createChainableProxy([{ authorDid: TOPIC_AUTHOR_DID }])
-    mockDb.select.mockReturnValue(selectChain)
+    // Mock: select topic author, then prefs (allow replies)
+    mockDb.select
+      .mockReturnValueOnce(createChainableProxy([{ authorDid: TOPIC_AUTHOR_DID }]))
+      .mockReturnValueOnce(createChainableProxy([{ notificationPrefs: ALLOW_ALL_PREFS }]))
 
     // Mock: insert notification
     const insertChain = createChainableProxy()
@@ -142,12 +150,12 @@ describe('notifyOnReply', () => {
   })
 
   it('notifies both topic author and parent reply author for nested replies', async () => {
-    // First select: topic author
-    const topicSelectChain = createChainableProxy([{ authorDid: TOPIC_AUTHOR_DID }])
-    // Second select: parent reply author
-    const parentSelectChain = createChainableProxy([{ authorDid: REPLY_AUTHOR_DID }])
-
-    mockDb.select.mockReturnValueOnce(topicSelectChain).mockReturnValueOnce(parentSelectChain)
+    // select: topic author, prefs for topic author, parent reply author, prefs for parent author
+    mockDb.select
+      .mockReturnValueOnce(createChainableProxy([{ authorDid: TOPIC_AUTHOR_DID }]))
+      .mockReturnValueOnce(createChainableProxy([{ notificationPrefs: ALLOW_ALL_PREFS }]))
+      .mockReturnValueOnce(createChainableProxy([{ authorDid: REPLY_AUTHOR_DID }]))
+      .mockReturnValueOnce(createChainableProxy([{ notificationPrefs: ALLOW_ALL_PREFS }]))
 
     const insertChain = createChainableProxy()
     mockDb.insert.mockReturnValue(insertChain)
@@ -166,10 +174,12 @@ describe('notifyOnReply', () => {
 
   it('does not duplicate notification when parent reply author is topic author', async () => {
     // Same author for topic and parent reply
-    const topicSelectChain = createChainableProxy([{ authorDid: TOPIC_AUTHOR_DID }])
-    const parentSelectChain = createChainableProxy([{ authorDid: TOPIC_AUTHOR_DID }])
-
-    mockDb.select.mockReturnValueOnce(topicSelectChain).mockReturnValueOnce(parentSelectChain)
+    // select: topic author, prefs for topic author, parent reply author (same person, deduplicated)
+    mockDb.select
+      .mockReturnValueOnce(createChainableProxy([{ authorDid: TOPIC_AUTHOR_DID }]))
+      .mockReturnValueOnce(createChainableProxy([{ notificationPrefs: ALLOW_ALL_PREFS }]))
+      .mockReturnValueOnce(createChainableProxy([{ authorDid: TOPIC_AUTHOR_DID }]))
+    // No prefs lookup for parent since parentAuthor === topicAuthor (deduplicated before insertNotification)
 
     const insertChain = createChainableProxy()
     mockDb.insert.mockReturnValue(insertChain)
@@ -209,8 +219,10 @@ describe('notifyOnReply', () => {
 
 describe('notifyOnReaction', () => {
   it('notifies topic author when their topic gets a reaction', async () => {
-    const selectChain = createChainableProxy([{ authorDid: TOPIC_AUTHOR_DID }])
-    mockDb.select.mockReturnValue(selectChain)
+    // select: topic author, then prefs (allow reactions)
+    mockDb.select
+      .mockReturnValueOnce(createChainableProxy([{ authorDid: TOPIC_AUTHOR_DID }]))
+      .mockReturnValueOnce(createChainableProxy([{ notificationPrefs: ALLOW_ALL_PREFS }]))
 
     const insertChain = createChainableProxy()
     mockDb.insert.mockReturnValue(insertChain)
@@ -225,12 +237,11 @@ describe('notifyOnReaction', () => {
   })
 
   it('notifies reply author when their reply gets a reaction', async () => {
-    // First select (topic lookup): no match
-    const noMatchChain = createChainableProxy([])
-    // Second select (reply lookup): match
-    const replyChain = createChainableProxy([{ authorDid: REPLY_AUTHOR_DID }])
-
-    mockDb.select.mockReturnValueOnce(noMatchChain).mockReturnValueOnce(replyChain)
+    // select: topic lookup (no match), reply lookup (match), then prefs (allow reactions)
+    mockDb.select
+      .mockReturnValueOnce(createChainableProxy([]))
+      .mockReturnValueOnce(createChainableProxy([{ authorDid: REPLY_AUTHOR_DID }]))
+      .mockReturnValueOnce(createChainableProxy([{ notificationPrefs: ALLOW_ALL_PREFS }]))
 
     const insertChain = createChainableProxy()
     mockDb.insert.mockReturnValue(insertChain)
@@ -301,11 +312,12 @@ describe('notifyOnModAction', () => {
 
 describe('notifyOnMentions', () => {
   it('resolves handles to DIDs and creates mention notifications', async () => {
-    // Select: resolve handles
-    const userSelectChain = createChainableProxy([
-      { did: 'did:plc:mentioned1', handle: 'jay.bsky.team' },
-    ])
-    mockDb.select.mockReturnValue(userSelectChain)
+    // select: resolve handles, then prefs for the mentioned user (allow mentions)
+    mockDb.select
+      .mockReturnValueOnce(
+        createChainableProxy([{ did: 'did:plc:mentioned1', handle: 'jay.bsky.team' }])
+      )
+      .mockReturnValueOnce(createChainableProxy([{ notificationPrefs: ALLOW_ALL_PREFS }]))
 
     const insertChain = createChainableProxy()
     mockDb.insert.mockReturnValue(insertChain)
@@ -363,6 +375,169 @@ describe('notifyOnMentions', () => {
     // Should not even query the DB
     expect(mockDb.select).not.toHaveBeenCalled()
     expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+})
+
+// ===========================================================================
+// isNotificationAllowed (pure helper)
+// ===========================================================================
+
+describe('isNotificationAllowed', () => {
+  it('allows reply when prefs.replies is true', () => {
+    expect(isNotificationAllowed('reply', { ...DENY_ALL_PREFS, replies: true })).toBe(true)
+  })
+
+  it('denies reply when prefs.replies is false', () => {
+    expect(isNotificationAllowed('reply', { ...ALLOW_ALL_PREFS, replies: false })).toBe(false)
+  })
+
+  it('allows reaction when prefs.reactions is true', () => {
+    expect(isNotificationAllowed('reaction', { ...DENY_ALL_PREFS, reactions: true })).toBe(true)
+  })
+
+  it('denies reaction when prefs.reactions is false', () => {
+    expect(isNotificationAllowed('reaction', { ...ALLOW_ALL_PREFS, reactions: false })).toBe(false)
+  })
+
+  it('allows mention when prefs.mentions is true', () => {
+    expect(isNotificationAllowed('mention', { ...DENY_ALL_PREFS, mentions: true })).toBe(true)
+  })
+
+  it('denies mention when prefs.mentions is false', () => {
+    expect(isNotificationAllowed('mention', { ...ALLOW_ALL_PREFS, mentions: false })).toBe(false)
+  })
+
+  it('defaults to mentions=true when prefs are null', () => {
+    expect(isNotificationAllowed('mention', null)).toBe(true)
+  })
+
+  it('defaults to replies=false when prefs are null', () => {
+    expect(isNotificationAllowed('reply', null)).toBe(false)
+  })
+
+  it('defaults to reactions=false when prefs are null', () => {
+    expect(isNotificationAllowed('reaction', null)).toBe(false)
+  })
+
+  it('mod_action is always allowed regardless of prefs', () => {
+    expect(isNotificationAllowed('mod_action', DENY_ALL_PREFS)).toBe(true)
+    expect(isNotificationAllowed('mod_action', null)).toBe(true)
+  })
+})
+
+// ===========================================================================
+// Preference-based filtering (integration with notification service)
+// ===========================================================================
+
+describe('notification preference filtering', () => {
+  it('suppresses reply notification when replies preference is disabled', async () => {
+    mockDb.select
+      .mockReturnValueOnce(createChainableProxy([{ authorDid: TOPIC_AUTHOR_DID }]))
+      .mockReturnValueOnce(createChainableProxy([{ notificationPrefs: { ...DENY_ALL_PREFS } }]))
+
+    const insertChain = createChainableProxy()
+    mockDb.insert.mockReturnValue(insertChain)
+
+    await service.notifyOnReply({
+      replyUri: REPLY_URI,
+      actorDid: ACTOR_DID,
+      topicUri: TOPIC_URI,
+      parentUri: TOPIC_URI,
+      communityDid: COMMUNITY_DID,
+    })
+
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
+  it('suppresses reaction notification when reactions preference is disabled', async () => {
+    mockDb.select
+      .mockReturnValueOnce(createChainableProxy([{ authorDid: TOPIC_AUTHOR_DID }]))
+      .mockReturnValueOnce(createChainableProxy([{ notificationPrefs: { ...DENY_ALL_PREFS } }]))
+
+    const insertChain = createChainableProxy()
+    mockDb.insert.mockReturnValue(insertChain)
+
+    await service.notifyOnReaction({
+      subjectUri: TOPIC_URI,
+      actorDid: ACTOR_DID,
+      communityDid: COMMUNITY_DID,
+    })
+
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
+  it('suppresses mention notification when mentions preference is disabled', async () => {
+    mockDb.select
+      .mockReturnValueOnce(
+        createChainableProxy([{ did: 'did:plc:mentioned1', handle: 'jay.bsky.team' }])
+      )
+      .mockReturnValueOnce(createChainableProxy([{ notificationPrefs: { ...DENY_ALL_PREFS } }]))
+
+    const insertChain = createChainableProxy()
+    mockDb.insert.mockReturnValue(insertChain)
+
+    await service.notifyOnMentions({
+      content: 'Hey @jay.bsky.team',
+      subjectUri: REPLY_URI,
+      actorDid: ACTOR_DID,
+      communityDid: COMMUNITY_DID,
+    })
+
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
+  it('sends reply notification when no prefs exist and default allows it (no row)', async () => {
+    // No prefs row found → default: replies=false, so no notification
+    mockDb.select
+      .mockReturnValueOnce(createChainableProxy([{ authorDid: TOPIC_AUTHOR_DID }]))
+      .mockReturnValueOnce(createChainableProxy([])) // empty → no prefs row
+
+    await service.notifyOnReply({
+      replyUri: REPLY_URI,
+      actorDid: ACTOR_DID,
+      topicUri: TOPIC_URI,
+      parentUri: TOPIC_URI,
+      communityDid: COMMUNITY_DID,
+    })
+
+    expect(mockDb.insert).not.toHaveBeenCalled()
+  })
+
+  it('sends mention notification when no prefs exist (default: mentions=true)', async () => {
+    // No prefs row → default: mentions=true → notification is sent
+    mockDb.select
+      .mockReturnValueOnce(
+        createChainableProxy([{ did: 'did:plc:mentioned1', handle: 'jay.bsky.team' }])
+      )
+      .mockReturnValueOnce(createChainableProxy([])) // empty → no prefs row
+
+    const insertChain = createChainableProxy()
+    mockDb.insert.mockReturnValue(insertChain)
+
+    await service.notifyOnMentions({
+      content: 'Hey @jay.bsky.team',
+      subjectUri: REPLY_URI,
+      actorDid: ACTOR_DID,
+      communityDid: COMMUNITY_DID,
+    })
+
+    expect(mockDb.insert).toHaveBeenCalled()
+  })
+
+  it('always delivers mod_action notification regardless of preferences', async () => {
+    const insertChain = createChainableProxy()
+    mockDb.insert.mockReturnValue(insertChain)
+
+    await service.notifyOnModAction({
+      targetUri: TOPIC_URI,
+      moderatorDid: MODERATOR_DID,
+      targetDid: TOPIC_AUTHOR_DID,
+      communityDid: COMMUNITY_DID,
+    })
+
+    // No prefs lookup, insert always called
+    expect(mockDb.select).not.toHaveBeenCalled()
+    expect(mockDb.insert).toHaveBeenCalled()
   })
 })
 

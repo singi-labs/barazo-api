@@ -2149,12 +2149,22 @@ describe('profile routes', () => {
         communityDid: string
         maturityOverride: null
         mutedWords: null
-        notificationPrefs: null
+        notificationPrefs: {
+          replies: boolean
+          reactions: boolean
+          mentions: boolean
+          modActions: boolean
+        }
       }>()
       expect(body.communityDid).toBe(COMMUNITY_DID)
       expect(body.maturityOverride).toBeNull()
       expect(body.mutedWords).toBeNull()
-      expect(body.notificationPrefs).toBeNull()
+      expect(body.notificationPrefs).toEqual({
+        replies: false,
+        reactions: false,
+        mentions: true,
+        modActions: false,
+      })
     })
 
     it('returns existing values including non-null fields', async () => {
@@ -2345,12 +2355,22 @@ describe('profile routes', () => {
         mutedWords: null
         blockedDids: null
         mutedDids: null
-        notificationPrefs: null
+        notificationPrefs: {
+          replies: boolean
+          reactions: boolean
+          mentions: boolean
+          modActions: boolean
+        }
       }>()
       expect(body.communityDid).toBe(COMMUNITY_DID)
       expect(body.maturityOverride).toBeNull()
       expect(body.mutedWords).toBeNull()
-      expect(body.notificationPrefs).toBeNull()
+      expect(body.notificationPrefs).toEqual({
+        replies: false,
+        reactions: false,
+        mentions: true,
+        modActions: false,
+      })
     })
 
     it('only sets maturityOverride when only maturityOverride is provided', async () => {
