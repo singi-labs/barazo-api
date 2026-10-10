@@ -253,7 +253,7 @@ See [barazo-deploy](https://github.com/singi-labs/barazo-deploy) for full deploy
 ## Community
 
 - **Website:** [barazo.forum](https://barazo.forum)
-- **Discussions:** [GitHub Discussions](https://github.com/orgs/singi-labs/discussions)
+- **Bluesky:** [@barazo.forum](https://bsky.app/profile/barazo.forum)
 - **Issues:** [Report bugs](https://github.com/singi-labs/barazo-api/issues)
 
 ---
