@@ -3687,4 +3687,215 @@ describe('topic routes', () => {
       expect(body.topics[0]?.isMutedWord).toBe(true)
     })
   })
+
+  // =========================================================================
+  // View counter (BARA-7)
+  // =========================================================================
+
+  describe('view counter — GET /api/topics/:uri', () => {
+    const viewCountMockCache = {
+      get: vi.fn<() => Promise<string | null>>().mockResolvedValue(null),
+      set: vi.fn<() => Promise<string>>().mockResolvedValue('OK'),
+    }
+
+    async function buildViewCountApp(): Promise<FastifyInstance> {
+      const a = Fastify({ logger: false })
+      a.decorate('db', mockDb as never)
+      a.decorate('env', mockEnv)
+      a.decorate('authMiddleware', createMockAuthMiddleware(testUser()))
+      a.decorate('firehose', mockFirehose as never)
+      a.decorate('oauthClient', {} as never)
+      a.decorate('sessionService', {} as SessionService)
+      a.decorate('setupService', {} as SetupService)
+      a.decorate('cache', viewCountMockCache as never)
+      a.decorateRequest('user', undefined as RequestUser | undefined)
+      a.decorateRequest('communityDid', undefined as string | undefined)
+      a.addHook('onRequest', (request, _reply, done) => {
+        request.communityDid = 'did:plc:test'
+        done()
+      })
+      await a.register(topicRoutes())
+      await a.ready()
+      return a
+    }
+
+    let viewApp: FastifyInstance
+
+    beforeAll(async () => {
+      viewApp = await buildViewCountApp()
+    })
+
+    afterAll(async () => {
+      await viewApp.close()
+    })
+
+    beforeEach(() => {
+      vi.clearAllMocks()
+      resetAllDbMocks()
+      viewCountMockCache.get.mockResolvedValue(null)
+      viewCountMockCache.set.mockResolvedValue('OK')
+    })
+
+    it('returns viewCount in single topic response', async () => {
+      const row = sampleTopicRow({ viewCount: 42 })
+      selectChain.where.mockResolvedValueOnce([row])
+
+      const encodedUri = encodeURIComponent(TEST_URI)
+      const response = await viewApp.inject({
+        method: 'GET',
+        url: `/api/topics/${encodedUri}`,
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = response.json<{ viewCount: number }>()
+      expect(body.viewCount).toBe(42)
+    })
+
+    it('increments view count when no dedup key exists', async () => {
+      const row = sampleTopicRow({ viewCount: 5 })
+      selectChain.where.mockResolvedValueOnce([row])
+      viewCountMockCache.get.mockResolvedValue(null) // no dedup key
+
+      const encodedUri = encodeURIComponent(TEST_URI)
+      const response = await viewApp.inject({
+        method: 'GET',
+        url: `/api/topics/${encodedUri}`,
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(viewCountMockCache.get).toHaveBeenCalledOnce()
+      expect(viewCountMockCache.set).toHaveBeenCalledOnce()
+      expect(mockDb.update).toHaveBeenCalled()
+    })
+
+    it('skips view count increment when dedup key already exists', async () => {
+      const row = sampleTopicRow({ viewCount: 5 })
+      selectChain.where.mockResolvedValueOnce([row])
+      viewCountMockCache.get.mockResolvedValue('1') // dedup key present
+
+      const encodedUri = encodeURIComponent(TEST_URI)
+      const response = await viewApp.inject({
+        method: 'GET',
+        url: `/api/topics/${encodedUri}`,
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(viewCountMockCache.get).toHaveBeenCalledOnce()
+      expect(viewCountMockCache.set).not.toHaveBeenCalled()
+      expect(mockDb.update).not.toHaveBeenCalled()
+    })
+
+    it('does not fail when cache is unavailable', async () => {
+      const row = sampleTopicRow({ viewCount: 0 })
+      selectChain.where.mockResolvedValueOnce([row])
+      viewCountMockCache.get.mockRejectedValue(new Error('Valkey down'))
+
+      const encodedUri = encodeURIComponent(TEST_URI)
+      const response = await viewApp.inject({
+        method: 'GET',
+        url: `/api/topics/${encodedUri}`,
+      })
+
+      // Request should succeed even when cache fails
+      expect(response.statusCode).toBe(200)
+    })
+  })
+
+  describe('view counter — GET /api/topics/by-rkey/:rkey', () => {
+    const viewCountMockCache = {
+      get: vi.fn<() => Promise<string | null>>().mockResolvedValue(null),
+      set: vi.fn<() => Promise<string>>().mockResolvedValue('OK'),
+    }
+
+    async function buildViewCountApp(): Promise<FastifyInstance> {
+      const a = Fastify({ logger: false })
+      a.decorate('db', mockDb as never)
+      a.decorate('env', mockEnv)
+      a.decorate('authMiddleware', createMockAuthMiddleware(testUser()))
+      a.decorate('firehose', mockFirehose as never)
+      a.decorate('oauthClient', {} as never)
+      a.decorate('sessionService', {} as SessionService)
+      a.decorate('setupService', {} as SetupService)
+      a.decorate('cache', viewCountMockCache as never)
+      a.decorateRequest('user', undefined as RequestUser | undefined)
+      a.decorateRequest('communityDid', undefined as string | undefined)
+      a.addHook('onRequest', (request, _reply, done) => {
+        request.communityDid = 'did:plc:test'
+        done()
+      })
+      await a.register(topicRoutes())
+      await a.ready()
+      return a
+    }
+
+    let viewApp: FastifyInstance
+
+    beforeAll(async () => {
+      viewApp = await buildViewCountApp()
+    })
+
+    afterAll(async () => {
+      await viewApp.close()
+    })
+
+    beforeEach(() => {
+      vi.clearAllMocks()
+      resetAllDbMocks()
+      viewCountMockCache.get.mockResolvedValue(null)
+      viewCountMockCache.set.mockResolvedValue('OK')
+    })
+
+    it('returns viewCount in by-rkey topic response', async () => {
+      const row = sampleTopicRow({ viewCount: 7 })
+      selectChain.where.mockResolvedValueOnce([row])
+      selectChain.where.mockResolvedValueOnce([{ maturityRating: 'safe' }])
+      selectChain.where.mockResolvedValueOnce([{ declaredAge: null, maturityPref: 'safe' }])
+      selectChain.where.mockResolvedValueOnce([{ ageThreshold: 16 }])
+
+      const response = await viewApp.inject({
+        method: 'GET',
+        url: '/api/topics/by-rkey/abc123',
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = response.json<{ viewCount: number }>()
+      expect(body.viewCount).toBe(7)
+    })
+
+    it('increments view count by-rkey when no dedup key exists', async () => {
+      const row = sampleTopicRow()
+      selectChain.where.mockResolvedValueOnce([row])
+      selectChain.where.mockResolvedValueOnce([{ maturityRating: 'safe' }])
+      selectChain.where.mockResolvedValueOnce([{ declaredAge: null, maturityPref: 'safe' }])
+      selectChain.where.mockResolvedValueOnce([{ ageThreshold: 16 }])
+      viewCountMockCache.get.mockResolvedValue(null)
+
+      const response = await viewApp.inject({
+        method: 'GET',
+        url: '/api/topics/by-rkey/abc123',
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(viewCountMockCache.get).toHaveBeenCalledOnce()
+      expect(viewCountMockCache.set).toHaveBeenCalledOnce()
+      expect(mockDb.update).toHaveBeenCalled()
+    })
+
+    it('skips view count by-rkey when dedup key present', async () => {
+      const row = sampleTopicRow()
+      selectChain.where.mockResolvedValueOnce([row])
+      selectChain.where.mockResolvedValueOnce([{ maturityRating: 'safe' }])
+      selectChain.where.mockResolvedValueOnce([{ declaredAge: null, maturityPref: 'safe' }])
+      selectChain.where.mockResolvedValueOnce([{ ageThreshold: 16 }])
+      viewCountMockCache.get.mockResolvedValue('1')
+
+      const response = await viewApp.inject({
+        method: 'GET',
+        url: '/api/topics/by-rkey/abc123',
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(mockDb.update).not.toHaveBeenCalled()
+    })
+  })
 })

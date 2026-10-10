@@ -1,6 +1,9 @@
 import { eq, and, asc, desc, sql, inArray, notInArray, isNotNull, ne, or } from 'drizzle-orm'
+import { createHash } from 'node:crypto'
 import { requireCommunityDid } from '../middleware/community-resolver.js'
 import type { FastifyPluginCallback } from 'fastify'
+import type { Database } from '../db/index.js'
+import type { Cache } from '../cache/index.js'
 import { createPdsClient } from '../lib/pds-client.js'
 import {
   notFound,
@@ -81,6 +84,7 @@ const topicJsonSchema = {
     cid: { type: 'string' as const },
     replyCount: { type: 'integer' as const },
     reactionCount: { type: 'integer' as const },
+    viewCount: { type: 'integer' as const },
     isMuted: { type: 'boolean' as const },
     isMutedWord: { type: 'boolean' as const },
     ozoneLabel: { type: ['string', 'null'] as const },
@@ -125,6 +129,7 @@ function serializeTopic(row: typeof topics.$inferSelect, categoryMaturityRating:
     cid: row.cid,
     replyCount: row.replyCount,
     reactionCount: row.reactionCount,
+    viewCount: row.viewCount,
     isAuthorDeleted: row.isAuthorDeleted,
     isModDeleted: row.isModDeleted,
     isPinned: row.isPinned,
@@ -160,6 +165,40 @@ function decodeCursor(cursor: string): { lastActivityAt: string; uri: string } |
     return null
   } catch {
     return null
+  }
+}
+
+// ---------------------------------------------------------------------------
+// View count helper
+// ---------------------------------------------------------------------------
+
+const VIEW_COUNT_TTL_SECONDS = 60
+
+/**
+ * Increment the view count for a topic if the request IP has not already
+ * been counted within the deduplication window (~60 s).
+ * Silently skips on any cache error to avoid blocking the response.
+ */
+async function incrementViewCount(
+  db: Database,
+  cache: Cache,
+  topicUri: string,
+  requestIp: string
+): Promise<void> {
+  try {
+    const dedupKey = `viewcount:dedup:${createHash('sha256')
+      .update(requestIp + topicUri)
+      .digest('hex')}`
+    const existing = await cache.get(dedupKey)
+    if (!existing) {
+      await cache.set(dedupKey, '1', 'EX', VIEW_COUNT_TTL_SECONDS)
+      await db
+        .update(topics)
+        .set({ viewCount: sql`view_count + 1` })
+        .where(eq(topics.uri, topicUri))
+    }
+  } catch {
+    // Cache unavailable or DB error — skip silently; view count is best-effort
   }
 }
 
@@ -856,6 +895,8 @@ export function topicRoutes(): FastifyPluginCallback {
         const serialized = serializeTopic(row, categoryRating)
         const authorMap = await resolveAuthors([row.authorDid], communityDid, db)
 
+        await incrementViewCount(db, app.cache, row.uri, request.ip)
+
         return reply.status(200).send({
           ...serialized,
           author: authorMap.get(row.authorDid) ?? {
@@ -1028,6 +1069,8 @@ export function topicRoutes(): FastifyPluginCallback {
 
         const serialized = serializeTopic(row, categoryRating)
         const authorMap = await resolveAuthors([row.authorDid], communityDid, db)
+
+        await incrementViewCount(db, app.cache, decodedUri, request.ip)
 
         return reply.status(200).send({
           ...serialized,
