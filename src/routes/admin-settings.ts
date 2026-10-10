@@ -6,6 +6,7 @@ import { isMaturityLowerThan } from '../lib/maturity.js'
 import { updateSettingsSchema } from '../validation/admin-settings.js'
 import { communitySettings } from '../db/schema/community-settings.js'
 import { categories } from '../db/schema/categories.js'
+import { adminAuditLog } from '../db/schema/admin-audit-log.js'
 
 // ---------------------------------------------------------------------------
 // OpenAPI JSON Schema definitions
@@ -401,7 +402,13 @@ export function adminSettingsRoutes(): FastifyPluginCallback {
           throw notFound('Community settings not found after update')
         }
 
-        // TODO: Write to admin_audit_log table when implemented (standards/backend.md audit logging) (#38)
+        await db.insert(adminAuditLog).values({
+          communityDid,
+          actorDid: request.user?.did ?? 'unknown',
+          action: 'settings_update',
+          changes: Object.keys(parsed.data),
+        })
+
         app.log.info(
           {
             event: 'settings_updated',

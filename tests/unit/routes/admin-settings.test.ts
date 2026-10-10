@@ -56,11 +56,13 @@ const mockDb = createMockDb()
 
 let selectChain: DbChain
 let updateChain: DbChain
+let insertChain: DbChain
 
 function resetAllDbMocks(): void {
   selectChain = createChainableProxy([])
   updateChain = createChainableProxy([])
-  mockDb.insert.mockReturnValue(createChainableProxy())
+  insertChain = createChainableProxy()
+  mockDb.insert.mockReturnValue(insertChain)
   mockDb.select.mockReturnValue(selectChain)
   mockDb.update.mockReturnValue(updateChain)
   mockDb.delete.mockReturnValue(createChainableProxy())
@@ -838,6 +840,84 @@ describe('admin settings routes', () => {
       })
 
       expect(response.statusCode).toBe(400)
+    })
+
+    // -----------------------------------------------------------------------
+    // Audit log
+    // -----------------------------------------------------------------------
+
+    it('writes an audit log entry on successful settings update', async () => {
+      const settings = sampleCommunitySettings()
+      selectChain.where.mockResolvedValueOnce([settings])
+      updateChain.returning.mockResolvedValueOnce([
+        { ...settings, communityName: 'Audited Name', updatedAt: new Date() },
+      ])
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/admin/settings',
+        headers: { authorization: 'Bearer admin-token' },
+        payload: { communityName: 'Audited Name' },
+      })
+
+      expect(response.statusCode).toBe(200)
+      expect(mockDb.insert).toHaveBeenCalledOnce()
+      const auditEntry = insertChain.values.mock.calls[0]?.[0] as Record<string, unknown>
+      expect(auditEntry.actorDid).toBe(ADMIN_DID)
+      expect(auditEntry.action).toBe('settings_update')
+      expect(auditEntry.changes).toEqual(['communityName'])
+      expect(auditEntry.communityDid).toBeTruthy()
+    })
+
+    it('audit log entry includes all changed field names', async () => {
+      const settings = sampleCommunitySettings()
+      selectChain.where.mockResolvedValueOnce([settings])
+      updateChain.returning.mockResolvedValueOnce([
+        { ...settings, communityName: 'Multi', ageThreshold: 13, updatedAt: new Date() },
+      ])
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/admin/settings',
+        headers: { authorization: 'Bearer admin-token' },
+        payload: { communityName: 'Multi', ageThreshold: 13 },
+      })
+
+      expect(response.statusCode).toBe(200)
+      const auditEntry = insertChain.values.mock.calls[0]?.[0] as Record<string, unknown>
+      expect(auditEntry.changes).toEqual(expect.arrayContaining(['communityName', 'ageThreshold']))
+    })
+
+    it('does not write audit log when settings update returns 404', async () => {
+      const settings = sampleCommunitySettings()
+      selectChain.where.mockResolvedValueOnce([settings])
+      updateChain.returning.mockResolvedValueOnce([]) // row deleted between read and write
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/admin/settings',
+        headers: { authorization: 'Bearer admin-token' },
+        payload: { communityName: 'Ghost' },
+      })
+
+      expect(response.statusCode).toBe(404)
+      expect(mockDb.insert).not.toHaveBeenCalled()
+    })
+
+    it('does not write audit log when maturity conflict blocks update', async () => {
+      const settings = sampleCommunitySettings({ maturityRating: 'safe' })
+      selectChain.where.mockResolvedValueOnce([settings])
+      selectChain.where.mockResolvedValueOnce([sampleCategoryRow({ maturityRating: 'safe' })])
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/admin/settings',
+        headers: { authorization: 'Bearer admin-token' },
+        payload: { maturityRating: 'mature' },
+      })
+
+      expect(response.statusCode).toBe(409)
+      expect(mockDb.insert).not.toHaveBeenCalled()
     })
   })
 

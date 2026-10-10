@@ -39,6 +39,7 @@ export default defineConfig({
     './src/db/schema/community-rules.ts',
     './src/db/schema/community-rule-versions.ts',
     './src/db/schema/moderation-action-rules.ts',
+    './src/db/schema/admin-audit-log.ts',
   ],
   out: './drizzle',
   dialect: 'postgresql',
