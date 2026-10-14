@@ -2,11 +2,11 @@
 # When running in the workspace root, the root pnpm-workspace.yaml takes precedence.
 # Keep these versions in sync with the workspace root catalog.
 catalog:
-  zod: '4.3.6'
+  zod: '4.6.5'
   vitest: '4.0.18'
   typescript: '5.9.3'
-  typescript-eslint: '8.56.1'
-  eslint: '10.0.2'
+  typescript-eslint: '8.71.1'
+  eslint: '10.12.0'
   '@types/node': '25.3.3'
   '@commitlint/cli': '20.4.2'
   '@commitlint/config-conventional': '20.4.2'
@@ -14,4 +14,4 @@ catalog:
   husky: '9.1.7'
   lint-staged: '16.3.1'
   multiformats: '13.4.2'
-  prettier: '3.8.1'
+  prettier: '3.9.10'
