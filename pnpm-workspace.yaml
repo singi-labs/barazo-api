@@ -2,7 +2,7 @@
 # When running in the workspace root, the root pnpm-workspace.yaml takes precedence.
 # Keep these versions in sync with the workspace root catalog.
 catalog:
-  zod: '4.3.6'
+  zod: '4.6.6'
   vitest: '4.0.18'
   typescript: '5.9.3'
   typescript-eslint: '8.56.1'
